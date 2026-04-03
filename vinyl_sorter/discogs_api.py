@@ -89,13 +89,20 @@ class DiscogsAPI:
     # -- Artist ---------------------------------------------------------------
 
     def lookup_artist_type(self, artist_id: int) -> ArtistType:
-        """Determine if an artist is solo or group by checking Discogs members."""
-        logger.debug("Looking up Discogs Artist ID: %d", artist_id)
-        artist_info = self._client.artist(artist_id)
+        """Determine if an artist is solo or group by checking Discogs members.
 
-        if hasattr(artist_info, "members") and artist_info.members:
-            return ArtistType.GROUP
-        return ArtistType.SOLO
+        Returns ArtistType.UNKNOWN if the artist ID is not found (e.g.
+        compilations, merged or deleted artist entries).
+        """
+        logger.debug("Looking up Discogs Artist ID: %d", artist_id)
+        try:
+            artist_info = self._client.artist(artist_id)
+            if hasattr(artist_info, "members") and artist_info.members:
+                return ArtistType.GROUP
+            return ArtistType.SOLO
+        except Exception as exc:
+            logger.warning("Could not look up artist ID %d: %s", artist_id, exc)
+            return ArtistType.UNKNOWN
 
     # -- Release / Master -----------------------------------------------------
 
