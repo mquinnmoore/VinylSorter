@@ -22,3 +22,6 @@ INSIGNIFICANT_LEADING_WORDS = {"The", "A", "An"}
 
 # Keywords that indicate a live recording
 LIVE_KEYWORDS = ["live", "recorded at", "concert", "venue"]
+
+# Artist names that indicate a compilation / various-artists release
+COMPILATION_ARTISTS = {"Various", "Various Artists"}

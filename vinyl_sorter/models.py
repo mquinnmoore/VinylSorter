@@ -7,7 +7,12 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from .constants import ArtistType, INSIGNIFICANT_LEADING_WORDS, LIVE_KEYWORDS
+from .constants import (
+    ArtistType,
+    COMPILATION_ARTISTS,
+    INSIGNIFICANT_LEADING_WORDS,
+    LIVE_KEYWORDS,
+)
 
 if TYPE_CHECKING:
     from .discogs_api import DiscogsAPI
@@ -33,6 +38,7 @@ class VinylRecord:
 
     # Derived fields (populated during parsing)
     release_artist_type: ArtistType = ArtistType.UNKNOWN
+    is_compilation: bool = False
     is_live: bool = False
     sort_artist: str = "None"
     sort_year: int = -1
@@ -59,10 +65,17 @@ class VinylRecord:
     def compute_sort_artist(self, api: DiscogsAPI) -> str:
         """Determine the best artist string for alphabetical sorting.
 
+        Compilations → flagged and sorted to the end.
         Solo artists → last name only.
         Groups       → strip leading insignificant words (The, A, An).
         Unknown      → fall back to release artist as-is.
         """
+        # Check for compilations first
+        if self.release_artist in COMPILATION_ARTISTS:
+            self.is_compilation = True
+            logger.debug("Detected '%s' as a compilation.", self.release_title)
+            return "Compilation"
+
         self.release_artist_type = api.lookup_artist_type(self.release_artist_id)
         logger.debug(
             "Determined %s as type: %s", self.release_artist, self.release_artist_type.value

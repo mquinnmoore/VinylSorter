@@ -23,7 +23,7 @@ def export_collection(
     """
     logger.info("Saving sorted collection to '%s'…", output_file)
 
-    headers = ["Sort #", "Sort Artist", "Artist", "Album", "Sort Year", "Year", "Live"]
+    headers = ["Sort #", "Sort Artist", "Artist", "Album", "Sort Year", "Year", "Live", "Compilation"]
 
     with open(output_file, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=headers, delimiter=delimiter)
@@ -38,6 +38,7 @@ def export_collection(
                 "Sort Year": record.sort_year,
                 "Year": record.release_year,
                 "Live": "Yes" if record.is_live else "",
+                "Compilation": "Yes" if record.is_compilation else "",
             })
 
     logger.info("Wrote %d records to '%s'.", len(records), output_file)

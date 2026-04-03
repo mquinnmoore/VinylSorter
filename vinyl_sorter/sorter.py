@@ -20,7 +20,10 @@ def sort_collection(records: List[VinylRecord]) -> List[VinylRecord]:
     """
     logger.info("Sorting collection by parsed fields…")
 
-    sorted_records = sorted(records, key=operator.attrgetter("sort_artist", "sort_year"))
+    # is_compilation=False (0) sorts before True (1), so compilations land at the end
+    sorted_records = sorted(
+        records, key=operator.attrgetter("is_compilation", "sort_artist", "sort_year")
+    )
 
     for i, record in enumerate(sorted_records, start=1):
         record.sort_sequence = i
