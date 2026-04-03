@@ -2,12 +2,55 @@
 
 Having been dissatisfied with the widely available tools to organize my vinyl collection, and hoping to learn a little bit about coding in python, I mashed two objectives together and created this script. In all fairness it was also a way for me to learn about vibe coding, so almost all the heavy lifting here was done with AI help. Between my noob-ness and the AI I am sure this code fails to meet almost all efficiency and linting standards. I'll work on that.
 
+## Usage
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run with a Discogs token
+python -m vinyl_sorter --token YOUR_TOKEN
+
+# Or set the token as an environment variable
+export DISCOGS_TOKEN=YOUR_TOKEN
+python -m vinyl_sorter
+
+# See all options
+python -m vinyl_sorter --help
+```
+
+### CLI Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--token` | `$DISCOGS_TOKEN` | Discogs personal access token |
+| `--user-agent` | `VinylSorter/2.0` | User-Agent for Discogs API |
+| `--folder` | `0` (all) | Discogs collection folder index |
+| `--output`, `-o` | `sorted_vinyl_collection.csv` | Output file path |
+| `--delimiter` | `,` | Output field delimiter |
+| `--log-file` | `vinyl_sorter.log` | Log file path |
+| `--log-level` | `INFO` | Logging level (DEBUG/INFO/WARNING/ERROR) |
+| `--alias-file` | None | JSON file for artist sort-name overrides |
+
+### Artist Aliases
+
+Create a JSON file to override how artists are sorted:
+
+```json
+{
+    "The Jerry Garcia Band": "Garcia",
+    "Paul McCartney": "Beatles"
+}
+```
+
+Then: `python -m vinyl_sorter --alias-file aliases.json`
+
 ## Algorithm
 
-I think vinyl should be psychically sorted by artist, and within artist by date. But that is much easier said than done. Here is a pseudo-code-ish outline of what I think that means practically:
-
+I think vinyl should be physically sorted by artist, and within artist by date. But that is much easier said than done. Here is a pseudo-code-ish outline of what I think that means practically:
 
 - Sort by artist:
+  - If user has defined an alias for this artist → use the alias
   - If record is a compilation Then:
     - sort_artist = "Compilation" and goes after all the single artist records
   - Else (treat record as a single artist release):
@@ -29,26 +72,28 @@ I think vinyl should be psychically sorted by artist, and within artist by date.
       - sort_date = record release date
   - Else:
     - sort_date = recording event date (i.e. the concert date, which might be hard to figure out but most likely appears in the record title or liner notes)
-      
-## Shortcomings
 
-The above describes how this code currently works. However, I realize there are real shortcomings to this approach as it stands and which I will seek to address in future updates. Namely:
-- A user might wish to override the sort_artist logic and so there needs to be an alias definition capability. For example:
-  - Artist = "The Jerry Garcia Band" -> sort_artist = "Garcia" (which any reasonable person would agree to)
-  - Artist = "Paul McCartney" -> sort_artist = "Beatles" (which is heretical misunderstanding of the whole idea here, but even some record stores behave this way, so who am I to judge?)
-- This version lacks using passed parameters at run time, which should include (at least):
-  - Discogs Oauth credentials
-  - Output file name
-  - Output file field delimiter
-  - Logging file name
-  - Logging debug level
-  - Artist alias file name
-  - Which Discogs collection folder to include
-  - Help
+## Project Structure
+
+```
+vinyl_sorter/           # Main Python package
+  __init__.py           # Package metadata
+  __main__.py           # Entry point (python -m vinyl_sorter)
+  cli.py                # Command-line argument parsing
+  config.py             # Configuration from args/env vars
+  constants.py          # Enums and constants
+  discogs_api.py        # Discogs API — single session, rate-limited
+  models.py             # VinylRecord data model
+  loader.py             # Load collection from Discogs
+  parser.py             # Parse sort_artist and sort_year
+  sorter.py             # Sort the collection
+  exporter.py           # Export to CSV
+archive/                # Old exploration scripts (preserved for reference)
+```
 
 ## Good Citizenship
 
-This code logs into Disccogs using their APIs and does its best to play nicely. It has access delays and retry logic. It should stay that way.
+This code logs into Discogs using their APIs and does its best to play nicely. It has access delays and retry logic. It should stay that way.
 
 ## Controversial Philosophy Disclaimer
 

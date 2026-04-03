@@ -1,0 +1,16 @@
+# Credentials
+DiscogsToken.txt
+.env
+
+# Output files
+*.csv
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
