@@ -1,4 +1,4 @@
-"""Sort the parsed collection by artist then by year."""
+"""Sort the parsed collection by artist then by date."""
 
 import logging
 import operator
@@ -10,10 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 def sort_collection(records: List[VinylRecord]) -> List[VinylRecord]:
-    """Sort records alphabetically by sort_artist, then chronologically by sort_year.
+    """Sort records: compilations last, then alphabetically by sort_artist,
+    then chronologically by sort_year and sort_month.
 
     Args:
-        records: Parsed records with sort_artist and sort_year populated.
+        records: Parsed records with sort fields populated.
 
     Returns:
         New list of records in sorted order.
@@ -22,7 +23,8 @@ def sort_collection(records: List[VinylRecord]) -> List[VinylRecord]:
 
     # is_compilation=False (0) sorts before True (1), so compilations land at the end
     sorted_records = sorted(
-        records, key=operator.attrgetter("is_compilation", "sort_artist", "sort_year")
+        records,
+        key=operator.attrgetter("is_compilation", "sort_artist", "sort_year", "sort_month"),
     )
 
     for i, record in enumerate(sorted_records, start=1):

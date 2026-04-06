@@ -5,19 +5,32 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple, Optional
 
 from .constants import (
     ArtistType,
     COMPILATION_ARTISTS,
     INSIGNIFICANT_LEADING_WORDS,
     LIVE_KEYWORDS,
+    PARENTHETICAL_NUMBER_RE,
 )
 
 if TYPE_CHECKING:
     from .discogs_api import DiscogsAPI
 
 logger = logging.getLogger(__name__)
+
+
+def clean_artist_name(name: str) -> str:
+    """Strip Discogs disambiguation suffixes like '(2)' from artist names.
+
+    Args:
+        name: Raw artist name from Discogs.
+
+    Returns:
+        Cleaned artist name.
+    """
+    return re.sub(PARENTHETICAL_NUMBER_RE, "", name).strip()
 
 
 @dataclass
@@ -42,6 +55,7 @@ class VinylRecord:
     is_live: bool = False
     sort_artist: str = "None"
     sort_year: int = -1
+    sort_month: int = 0  # 0 = unknown; 1–12 = Jan–Dec
     sort_sequence: int = -1
 
     # Import order tracking
@@ -54,6 +68,8 @@ class VinylRecord:
         VinylRecord._import_counter += 1
         if self.import_number == -1:
             self.import_number = VinylRecord._import_counter
+        # Clean parenthetical numbers from artist name on load (#6)
+        self.release_artist = clean_artist_name(self.release_artist)
 
     def __repr__(self) -> str:
         return f"'{self.release_title}' by {self.release_artist}"
@@ -100,21 +116,28 @@ class VinylRecord:
         )
         return self.release_artist
 
-    def compute_sort_year(self, api: DiscogsAPI) -> int:
-        """Determine the best year for chronological sorting.
+    def compute_sort_date(self, api: DiscogsAPI) -> Tuple[int, int]:
+        """Determine the best year and month for chronological sorting.
 
-        Re-releases → original (master) release year.
+        Re-releases → original (master) release year/month.
         Live albums  → performance year extracted from text fields.
+
+        Returns:
+            (year, month) tuple. Month is 0 if unknown.
         """
         parsed_year = self.release_year
+        parsed_month = 0
         field_to_check = self.release_title
 
         # Check for a master release (original release date)
-        master_exists, master_title, master_year = api.lookup_master_fields(self.discogs_id)
+        master_exists, master_title, master_year, master_month = api.lookup_master_fields(
+            self.discogs_id
+        )
         if master_exists:
             parsed_year = master_year
+            parsed_month = master_month
             field_to_check = master_title
-            logger.debug("Have master title '%s' dated '%s'", master_title, master_year)
+            logger.debug("Have master title '%s' dated %s-%02d", master_title, master_year, master_month)
 
         # Check if this is a live recording
         logger.debug("Scanning '%s' for live markers", field_to_check)
@@ -127,5 +150,6 @@ class VinylRecord:
             live_year = api.lookup_live_year(self.discogs_id)
             if live_year is not None and live_year != -1:
                 parsed_year = live_year
+                parsed_month = 0  # Live year extraction doesn't give us month
 
-        return parsed_year
+        return parsed_year, parsed_month
