@@ -107,14 +107,20 @@ class DiscogsAPI:
     # -- Release / Master -----------------------------------------------------
 
     def lookup_master_fields(self, release_id: int) -> Tuple[bool, str, int]:
-        """Return (master_exists, master_title, master_year) for a release."""
-        release_info = self._client.release(release_id)
+        """Return (master_exists, master_title, master_year) for a release.
 
-        if release_info.master:
-            title = release_info.master.title
-            year = release_info.master.year
-            logger.debug("Found master '%s' dated %s", title, year)
-            return True, title, year
+        Returns (False, "Unknown", -1) if the release or master cannot
+        be fetched (e.g. empty API response, network errors).
+        """
+        try:
+            release_info = self._client.release(release_id)
+            if release_info.master:
+                title = release_info.master.title
+                year = release_info.master.year
+                logger.debug("Found master '%s' dated %s", title, year)
+                return True, title, year
+        except Exception as exc:
+            logger.warning("Could not look up master for release %d: %s", release_id, exc)
 
         return False, "Unknown", -1
 
