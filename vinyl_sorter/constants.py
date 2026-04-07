@@ -25,3 +25,7 @@ LIVE_KEYWORDS = ["live", "recorded at", "concert", "venue"]
 
 # Artist names that indicate a compilation / various-artists release
 COMPILATION_ARTISTS = {"Various", "Various Artists"}
+
+# Pattern matching parenthetical disambiguation numbers from Discogs
+# e.g. "Wings (2)" → "Wings"
+PARENTHETICAL_NUMBER_RE = r"\s*\(\d+\)\s*$"

@@ -106,10 +106,10 @@ class DiscogsAPI:
 
     # -- Release / Master -----------------------------------------------------
 
-    def lookup_master_fields(self, release_id: int) -> Tuple[bool, str, int]:
-        """Return (master_exists, master_title, master_year) for a release.
+    def lookup_master_fields(self, release_id: int) -> Tuple[bool, str, int, int]:
+        """Return (master_exists, master_title, master_year, master_month) for a release.
 
-        Returns (False, "Unknown", -1) if the release or master cannot
+        Returns (False, "Unknown", -1, 0) if the release or master cannot
         be fetched (e.g. empty API response, network errors).
         """
         try:
@@ -117,12 +117,30 @@ class DiscogsAPI:
             if release_info.master:
                 title = release_info.master.title
                 year = release_info.master.year
-                logger.debug("Found master '%s' dated %s", title, year)
-                return True, title, year
+                # Try to get month from the master's main_release date
+                month = 0
+                try:
+                    main_release = release_info.master.main_release
+                    if main_release:
+                        date_str = getattr(main_release, 'date_added', '') or ''
+                        # Also check data dict for released date
+                        data = getattr(main_release, 'data', {}) or {}
+                        released = data.get('released', '') or ''
+                        if released and '-' in released:
+                            parts = released.split('-')
+                            if len(parts) >= 2:
+                                try:
+                                    month = int(parts[1])
+                                except (ValueError, IndexError):
+                                    pass
+                except Exception:
+                    pass  # Month extraction is best-effort
+                logger.debug("Found master '%s' dated %s-%02d", title, year, month)
+                return True, title, year, month
         except Exception as exc:
             logger.warning("Could not look up master for release %d: %s", release_id, exc)
 
-        return False, "Unknown", -1
+        return False, "Unknown", -1, 0
 
     def lookup_live_year(self, release_id: int) -> Optional[int]:
         """Search release and master text fields for a live-performance year."""
