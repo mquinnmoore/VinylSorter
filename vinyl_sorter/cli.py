@@ -110,5 +110,10 @@ def parse_args(argv=None) -> argparse.Namespace:
         default="Sort Month",
         help="Name of the Discogs custom field for sort month (default: 'Sort Month')",
     )
+    persist.add_argument(
+        "--field-is-compilation",
+        default="Is Compilation",
+        help="Name of the Discogs custom field for compilation flag (default: 'Is Compilation')",
+    )
 
     return parser.parse_args(argv)

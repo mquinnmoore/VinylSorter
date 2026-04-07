@@ -38,6 +38,7 @@ def load_collection(
         persisted_artist = None
         persisted_year = None
         persisted_month = None
+        persisted_compilation = None
 
         notes = getattr(item, "notes", None) or []
         # Some client versions put notes in .data
@@ -64,6 +65,8 @@ def load_collection(
                         persisted_month = int(val)
                     except ValueError:
                         logger.warning("Invalid persisted sort_month '%s'", val)
+                elif fid == field_ids.get("is_compilation"):
+                    persisted_compilation = val.lower() in ("yes", "true", "1")
 
         record = VinylRecord(
             discogs_id=release.id,
@@ -76,6 +79,7 @@ def load_collection(
             persisted_sort_artist=persisted_artist,
             persisted_sort_year=persisted_year,
             persisted_sort_month=persisted_month,
+            persisted_is_compilation=persisted_compilation,
         )
 
         if persisted_artist:

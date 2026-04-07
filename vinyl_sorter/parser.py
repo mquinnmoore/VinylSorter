@@ -91,11 +91,14 @@ def parse_collection(
         ):
             # Use persisted value from Discogs
             record.sort_artist = record.persisted_sort_artist
-            # Detect compilation from persisted data
-            record.is_compilation = (
-                record.release_artist in COMPILATION_ARTISTS
-                or record.sort_artist == "Compilation"
-            )
+            # Use persisted compilation flag if available, otherwise detect
+            if record.persisted_is_compilation is not None:
+                record.is_compilation = record.persisted_is_compilation
+            else:
+                record.is_compilation = (
+                    record.release_artist in COMPILATION_ARTISTS
+                    or record.sort_artist == "Compilation"
+                )
             used_persisted = True
             logger.debug(
                 "Using persisted sort_artist for '%s': '%s'",

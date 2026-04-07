@@ -35,12 +35,13 @@ def write_back_sort_data(
     artist_fid = field_ids.get("sort_artist")
     year_fid = field_ids.get("sort_year")
     month_fid = field_ids.get("sort_month")
+    comp_fid = field_ids.get("is_compilation")
 
-    if not any([artist_fid, year_fid, month_fid]):
+    if not any([artist_fid, year_fid, month_fid, comp_fid]):
         logger.warning(
             "No custom field IDs configured. Skipping write-back. "
-            "Create 'Sort Artist', 'Sort Year', and 'Sort Month' fields "
-            "in your Discogs collection settings."
+            "Create 'Sort Artist', 'Sort Year', 'Sort Month', and "
+            "'Is Compilation' fields in your Discogs collection settings."
         )
         return 0
 
@@ -67,6 +68,10 @@ def write_back_sort_data(
         persisted_month = record.persisted_sort_month if record.persisted_sort_month else 0
         if month_fid and current_month != persisted_month:
             writes_needed.append((month_fid, str(current_month)))
+
+        # Check if is_compilation needs writing
+        if comp_fid and record.is_compilation != record.persisted_is_compilation:
+            writes_needed.append((comp_fid, "Yes" if record.is_compilation else ""))
 
         if not writes_needed:
             skip_count += 1

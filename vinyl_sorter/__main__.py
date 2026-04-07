@@ -44,6 +44,7 @@ def main() -> None:
         "sort_artist": config.field_sort_artist,
         "sort_year": config.field_sort_year,
         "sort_month": config.field_sort_month,
+        "is_compilation": config.field_is_compilation,
     })
 
     has_fields = any(v is not None for v in field_ids.values())
@@ -51,6 +52,7 @@ def main() -> None:
         "sort_artist": config.field_sort_artist,
         "sort_year": config.field_sort_year,
         "sort_month": config.field_sort_month,
+        "is_compilation": config.field_is_compilation,
     }
     if has_fields:
         found = [f"{k} ('{field_name_map[k]}' → field {v})" for k, v in field_ids.items() if v is not None]
@@ -68,8 +70,9 @@ def main() -> None:
             f"    - '{config.field_sort_artist}'\n"
             f"    - '{config.field_sort_year}'\n"
             f"    - '{config.field_sort_month}'\n"
+            f"    - '{config.field_is_compilation}'\n"
             "  Field names must match exactly (case-insensitive).\n"
-            "  Or use --field-sort-artist/year/month to match your existing field names."
+            "  Or use --field-* flags to match your existing field names."
         )
 
     # Load (reads persisted custom field values if available)

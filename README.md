@@ -36,6 +36,7 @@ python -m vinyl_sorter --help
 | `--field-sort-artist` | `Sort Artist` | Discogs custom field name for sort artist |
 | `--field-sort-year` | `Sort Year` | Discogs custom field name for sort year |
 | `--field-sort-month` | `Sort Month` | Discogs custom field name for sort month |
+| `--field-is-compilation` | `Is Compilation` | Discogs custom field name for compilation flag |
 
 ### First-Time Setup: Discogs Custom Fields
 
@@ -44,10 +45,11 @@ VinylSorter can save computed sort data back to your Discogs account so that sub
 **One-time setup (takes 30 seconds):**
 
 1. Go to your [Discogs Collection Settings](https://www.discogs.com/settings/collection)
-2. Under **Collection Notes**, add three new custom fields:
+2. Under **Collection Notes**, add four new custom fields:
    - **Sort Artist** — type: Textarea
    - **Sort Year** — type: Textarea
    - **Sort Month** — type: Textarea
+   - **Is Compilation** — type: Textarea
 3. Save your settings
 
 The field names must match exactly (case-insensitive). VinylSorter auto-detects them by name when it starts up and will tell you what it found:

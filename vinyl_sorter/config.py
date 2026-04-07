@@ -37,6 +37,7 @@ class Config:
     field_sort_artist: str = "Sort Artist"
     field_sort_year: str = "Sort Year"
     field_sort_month: str = "Sort Month"
+    field_is_compilation: str = "Is Compilation"
 
     @classmethod
     def from_args(cls, args) -> "Config":
@@ -61,4 +62,5 @@ class Config:
             field_sort_artist=args.field_sort_artist,
             field_sort_year=args.field_sort_year,
             field_sort_month=args.field_sort_month,
+            field_is_compilation=args.field_is_compilation,
         )

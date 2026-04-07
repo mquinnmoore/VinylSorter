@@ -57,6 +57,7 @@ class VinylRecord:
     persisted_sort_artist: Optional[str] = None
     persisted_sort_year: Optional[int] = None
     persisted_sort_month: Optional[int] = None
+    persisted_is_compilation: Optional[bool] = None
 
     # Derived fields (populated during parsing)
     release_artist_type: ArtistType = ArtistType.UNKNOWN
