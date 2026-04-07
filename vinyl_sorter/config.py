@@ -5,7 +5,7 @@ variables, or config files — never hardcoded.
 """
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 
@@ -31,6 +31,13 @@ class Config:
     # Artist alias file (JSON mapping artist name → sort alias)
     alias_file: Optional[str] = None
 
+    # Persistence options
+    force_reparse: bool = False
+    no_write_back: bool = False
+    field_sort_artist: str = "Sort Artist"
+    field_sort_year: str = "Sort Year"
+    field_sort_month: str = "Sort Month"
+
     @classmethod
     def from_args(cls, args) -> "Config":
         """Build config from parsed CLI arguments, falling back to env vars."""
@@ -49,4 +56,9 @@ class Config:
             log_file=args.log_file,
             log_level=args.log_level.upper(),
             alias_file=args.alias_file,
+            force_reparse=args.force_reparse,
+            no_write_back=args.no_write_back,
+            field_sort_artist=args.field_sort_artist,
+            field_sort_year=args.field_sort_year,
+            field_sort_month=args.field_sort_month,
         )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Tuple, Optional
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from .constants import (
     ArtistType,
@@ -48,6 +48,15 @@ class VinylRecord:
     release_artist_id: int = -1
     release_title: str = "None"
     release_year: int = -1
+
+    # Discogs collection instance fields (needed for write-back)
+    instance_id: int = -1
+    folder_id: int = 0
+
+    # Persisted values from Discogs custom fields (None = not yet stored)
+    persisted_sort_artist: Optional[str] = None
+    persisted_sort_year: Optional[int] = None
+    persisted_sort_month: Optional[int] = None
 
     # Derived fields (populated during parsing)
     release_artist_type: ArtistType = ArtistType.UNKNOWN

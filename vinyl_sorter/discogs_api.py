@@ -9,7 +9,7 @@ import functools
 import logging
 import re
 import time
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import discogs_client
 import requests
@@ -78,7 +78,14 @@ class DiscogsAPI:
     def __init__(self, user_agent: str, token: str) -> None:
         self._client = discogs_client.Client(user_agent, user_token=token)
         self._user = self._client.identity()
+        self._token = token
+        self._username = str(self._user)
         logger.info("Logged into Discogs as %s", self._user)
+
+    @property
+    def username(self) -> str:
+        """The authenticated Discogs username."""
+        return self._username
 
     # -- Collection -----------------------------------------------------------
 
@@ -178,6 +185,98 @@ class DiscogsAPI:
         except Exception as exc:
             logger.error("Error processing release %d: %s", release_id, exc)
             return None
+
+    # -- Custom Fields (persistence) ------------------------------------------
+
+    def get_custom_fields(self) -> List[Dict]:
+        """Fetch the user's collection custom field definitions.
+
+        Returns:
+            List of field dicts with 'id', 'name', 'type', etc.
+        """
+        try:
+            url = f"{self._client._base_url}/users/{self._username}/collection/fields"
+            resp = self._client._fetcher.fetch(
+                self._client, "GET", url, headers={"User-Agent": self._client.user_agent}
+            )
+            import json
+            data = json.loads(resp[2])
+            fields = data.get("fields", [])
+            logger.info("Found %d custom fields in Discogs collection.", len(fields))
+            return fields
+        except Exception as exc:
+            logger.warning("Could not fetch custom fields: %s", exc)
+            return []
+
+    def resolve_field_ids(
+        self, field_names: Dict[str, str]
+    ) -> Dict[str, Optional[int]]:
+        """Map logical field names to Discogs field IDs by matching on name.
+
+        Args:
+            field_names: Mapping of logical name → Discogs field label.
+                e.g. {"sort_artist": "Sort Artist", "sort_year": "Sort Year"}
+
+        Returns:
+            Mapping of logical name → field_id (or None if not found).
+        """
+        fields = self.get_custom_fields()
+        result: Dict[str, Optional[int]] = {k: None for k in field_names}
+
+        for f in fields:
+            for logical, label in field_names.items():
+                if f.get("name", "").strip().lower() == label.strip().lower():
+                    result[logical] = f["id"]
+                    logger.debug("Mapped '%s' → field_id %d", label, f["id"])
+
+        return result
+
+    def write_custom_field(
+        self,
+        folder_id: int,
+        release_id: int,
+        instance_id: int,
+        field_id: int,
+        value: str,
+    ) -> bool:
+        """Write a value to a custom field on a collection instance.
+
+        Args:
+            folder_id: Collection folder ID.
+            release_id: Discogs release ID.
+            instance_id: Collection instance ID.
+            field_id: Custom field ID.
+            value: Value to write (string).
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        try:
+            url = (
+                f"{self._client._base_url}/users/{self._username}"
+                f"/collection/folders/{folder_id}/releases/{release_id}"
+                f"/instances/{instance_id}/fields/{field_id}"
+            )
+            self._client._fetcher.fetch(
+                self._client,
+                "POST",
+                url,
+                data='{"value": "' + str(value).replace('"', '\\"') + '"}',
+                headers={
+                    "User-Agent": self._client.user_agent,
+                    "Content-Type": "application/json",
+                },
+            )
+            logger.debug(
+                "Wrote field %d = '%s' on instance %d", field_id, value, instance_id
+            )
+            return True
+        except Exception as exc:
+            logger.warning(
+                "Failed to write field %d on instance %d: %s",
+                field_id, instance_id, exc,
+            )
+            return False
 
 
 # ---------------------------------------------------------------------------
