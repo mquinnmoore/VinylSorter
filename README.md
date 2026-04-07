@@ -31,6 +31,43 @@ python -m vinyl_sorter --help
 | `--log-file` | `vinyl_sorter.log` | Log file path |
 | `--log-level` | `INFO` | Logging level (DEBUG/INFO/WARNING/ERROR) |
 | `--alias-file` | None | JSON file for artist sort-name overrides |
+| `--force-reparse` | off | Ignore persisted data and recompute everything |
+| `--no-write-back` | off | Don't write computed data back to Discogs |
+| `--field-sort-artist` | `Sort Artist` | Discogs custom field name for sort artist |
+| `--field-sort-year` | `Sort Year` | Discogs custom field name for sort year |
+| `--field-sort-month` | `Sort Month` | Discogs custom field name for sort month |
+
+### First-Time Setup: Discogs Custom Fields
+
+VinylSorter can save computed sort data back to your Discogs account so that subsequent runs are dramatically faster (seconds instead of minutes). This is optional but highly recommended.
+
+**One-time setup (takes 30 seconds):**
+
+1. Go to your [Discogs Collection Settings](https://www.discogs.com/settings/collection)
+2. Under **Collection Notes**, add three new custom fields:
+   - **Sort Artist** — type: Textarea
+   - **Sort Year** — type: Textarea
+   - **Sort Month** — type: Textarea
+3. Save your settings
+
+The field names must match exactly (case-insensitive). VinylSorter auto-detects them by name when it starts up and will tell you what it found:
+
+```
+Custom fields found: sort_artist→4, sort_year→5, sort_month→6
+```
+
+If any fields are missing or misnamed, VinylSorter will warn you and continue without persistence for those fields. Use `--field-sort-artist`, `--field-sort-year`, or `--field-sort-month` to override the expected field names if yours differ.
+
+**What happens on each run:**
+
+| Run | Behavior | Time (300 records) |
+|-----|----------|--------------------|
+| First run | Computes everything, writes sort data back to Discogs | ~24 min |
+| Subsequent runs | Reads persisted data, skips API lookups | ~6 sec |
+| New records added | Only new records computed, rest from cache | ~36 sec per 5 new |
+| `--force-reparse` | Recomputes everything from scratch | ~24 min |
+
+You can also edit persisted values directly in the Discogs UI — your manual edits will be preserved unless you run with `--force-reparse`.
 
 ### Artist Aliases
 
@@ -88,6 +125,8 @@ vinyl_sorter/           # Main Python package
   parser.py             # Parse sort_artist and sort_year
   sorter.py             # Sort the collection
   exporter.py           # Export to CSV
+  persistence.py        # Write sort data back to Discogs custom fields
+docs/                   # Design documents and research
 archive/                # Old exploration scripts (preserved for reference)
 ```
 

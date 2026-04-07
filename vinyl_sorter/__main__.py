@@ -47,17 +47,29 @@ def main() -> None:
     })
 
     has_fields = any(v is not None for v in field_ids.values())
+    field_name_map = {
+        "sort_artist": config.field_sort_artist,
+        "sort_year": config.field_sort_year,
+        "sort_month": config.field_sort_month,
+    }
     if has_fields:
-        found = [f"{k}→{v}" for k, v in field_ids.items() if v is not None]
-        missing = [k for k, v in field_ids.items() if v is None]
-        print(f"Custom fields found: {', '.join(found)}")
+        found = [f"{k} ('{field_name_map[k]}' → field {v})" for k, v in field_ids.items() if v is not None]
+        missing = [f"{k} (expected '{field_name_map[k]}')" for k, v in field_ids.items() if v is None]
+        print(f"\u2705 Custom fields found: {', '.join(found)}")
         if missing:
-            print(f"Custom fields not found (will skip): {', '.join(missing)}")
+            print(f"\u26a0\ufe0f  Custom fields not found: {', '.join(missing)}")
+            print("  Persistence will be skipped for missing fields.")
+            print("  Check your Discogs collection settings or use --field-sort-* flags.")
     else:
         print(
-            "No custom fields found in Discogs. Sort data will not be persisted.\n"
-            "To enable persistence, create 'Sort Artist', 'Sort Year', and "
-            "'Sort Month' text fields in your Discogs collection settings."
+            "\u26a0\ufe0f  No custom fields found in Discogs. Sort data will not be persisted.\n"
+            "  To enable persistence, create these textarea fields in your\n"
+            f"  Discogs collection settings (https://www.discogs.com/settings/collection):\n"
+            f"    - '{config.field_sort_artist}'\n"
+            f"    - '{config.field_sort_year}'\n"
+            f"    - '{config.field_sort_month}'\n"
+            "  Field names must match exactly (case-insensitive).\n"
+            "  Or use --field-sort-artist/year/month to match your existing field names."
         )
 
     # Load (reads persisted custom field values if available)
