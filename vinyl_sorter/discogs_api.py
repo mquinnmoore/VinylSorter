@@ -79,8 +79,8 @@ class DiscogsAPI:
         self._client = discogs_client.Client(user_agent, user_token=token)
         self._user = self._client.identity()
         self._token = token
-        self._username = str(self._user)
-        logger.info("Logged into Discogs as %s", self._user)
+        self._username = self._user.username
+        logger.info("Logged into Discogs as %s", self._username)
 
     @property
     def username(self) -> str:
@@ -195,13 +195,17 @@ class DiscogsAPI:
             List of field dicts with 'id', 'name', 'type', etc.
         """
         try:
-            url = f"{self._client._base_url}/users/{self._username}/collection/fields"
-            resp = self._client._fetcher.fetch(
-                self._client, "GET", url, headers={"User-Agent": self._client.user_agent}
+            url = f"https://api.discogs.com/users/{self._username}/collection/fields"
+            resp = requests.get(
+                url,
+                headers={
+                    "User-Agent": self._client.user_agent,
+                    "Authorization": f"Discogs token={self._token}",
+                },
+                timeout=30,
             )
-            import json
-            data = json.loads(resp[2])
-            fields = data.get("fields", [])
+            resp.raise_for_status()
+            fields = resp.json().get("fields", [])
             logger.info("Found %d custom fields in Discogs collection.", len(fields))
             return fields
         except Exception as exc:
@@ -253,20 +257,20 @@ class DiscogsAPI:
         """
         try:
             url = (
-                f"{self._client._base_url}/users/{self._username}"
+                f"https://api.discogs.com/users/{self._username}"
                 f"/collection/folders/{folder_id}/releases/{release_id}"
                 f"/instances/{instance_id}/fields/{field_id}"
             )
-            self._client._fetcher.fetch(
-                self._client,
-                "POST",
+            resp = requests.post(
                 url,
-                data='{"value": "' + str(value).replace('"', '\\"') + '"}',
+                json={"value": str(value)},
                 headers={
                     "User-Agent": self._client.user_agent,
-                    "Content-Type": "application/json",
+                    "Authorization": f"Discogs token={self._token}",
                 },
+                timeout=30,
             )
+            resp.raise_for_status()
             logger.debug(
                 "Wrote field %d = '%s' on instance %d", field_id, value, instance_id
             )
