@@ -21,11 +21,15 @@ def sort_collection(records: List[VinylRecord]) -> List[VinylRecord]:
     """
     logger.info("Sorting collection by parsed fields…")
 
-    # is_compilation=False (0) sorts before True (1), so compilations land at the end
-    sorted_records = sorted(
-        records,
-        key=operator.attrgetter("is_compilation", "sort_artist", "sort_year", "sort_month"),
-    )
+    # is_compilation=False (0) sorts before True (1), so compilations land at the end.
+    # Non-compilations sort by artist → year → month.
+    # Compilations sort alphabetically by album title instead of date.
+    def _sort_key(record: VinylRecord) -> tuple:
+        if record.is_compilation:
+            return (1, record.release_title.lower(), 0, 0)
+        return (0, record.sort_artist, record.sort_year, record.sort_month)
+
+    sorted_records = sorted(records, key=_sort_key)
 
     for i, record in enumerate(sorted_records, start=1):
         record.sort_sequence = i
