@@ -130,24 +130,26 @@ class DiscogsAPI:
                 title = release_info.master.title
                 year = release_info.master.year
                 master_notes = getattr(release_info.master, 'notes', '') or ''
-                # Try to get month from the master's main_release date
                 month = 0
+
+                # Try to extract month from the master's main release date.
+                # The Discogs API returns a 'released' field (e.g. "1969-01-12",
+                # "1969-01", or just "1969").  We fetch it via direct API call
+                # since the client library's lazy objects don't always populate
+                # the data dict reliably.
                 try:
                     main_release = release_info.master.main_release
                     if main_release:
-                        date_str = getattr(main_release, 'date_added', '') or ''
-                        # Also check data dict for released date
-                        data = getattr(main_release, 'data', {}) or {}
-                        released = data.get('released', '') or ''
-                        if released and '-' in released:
-                            parts = released.split('-')
-                            if len(parts) >= 2:
-                                try:
-                                    month = int(parts[1])
-                                except (ValueError, IndexError):
-                                    pass
+                        main_release_id = getattr(main_release, 'id', None)
+                        if main_release_id:
+                            month = self._fetch_release_month(main_release_id)
                 except Exception:
                     pass  # Month extraction is best-effort
+
+                # If main release didn't yield a month, try the release itself
+                if month == 0:
+                    month = self._fetch_release_month(release_id)
+
                 combined_notes = f"{release_notes}\n{master_notes}".strip()
                 logger.debug("Found master '%s' dated %s-%02d", title, year, month)
                 return True, title, year, month, combined_notes
@@ -158,6 +160,38 @@ class DiscogsAPI:
             logger.warning("Could not look up master for release %d: %s", release_id, exc)
 
         return False, "Unknown", -1, 0, ""
+
+    def _fetch_release_month(self, release_id: int) -> int:
+        """Fetch the release month from the Discogs API 'released' field.
+
+        The 'released' field can be 'YYYY-MM-DD', 'YYYY-MM', or just 'YYYY'.
+        Returns 1–12 if a month is found, 0 otherwise.
+        """
+        try:
+            url = f"https://api.discogs.com/releases/{release_id}"
+            resp = requests.get(
+                url,
+                headers={
+                    "User-Agent": self._client.user_agent,
+                    "Authorization": f"Discogs token={self._token}",
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            released = resp.json().get("released", "") or ""
+            if released and "-" in released:
+                parts = released.split("-")
+                if len(parts) >= 2:
+                    month = int(parts[1])
+                    if 1 <= month <= 12:
+                        logger.debug(
+                            "Extracted month %d from release %d ('%s')",
+                            month, release_id, released,
+                        )
+                        return month
+        except Exception as exc:
+            logger.debug("Could not fetch month for release %d: %s", release_id, exc)
+        return 0
 
     def lookup_live_year(self, release_id: int) -> Optional[int]:
         """Search release and master text fields for a live-performance year."""
