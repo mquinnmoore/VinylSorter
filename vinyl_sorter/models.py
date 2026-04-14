@@ -140,7 +140,7 @@ class VinylRecord:
         field_to_check = self.release_title
 
         # Check for a master release (original release date)
-        master_exists, master_title, master_year, master_month = api.lookup_master_fields(
+        master_exists, master_title, master_year, master_month, notes = api.lookup_master_fields(
             self.discogs_id
         )
         if master_exists:
@@ -149,10 +149,11 @@ class VinylRecord:
             field_to_check = master_title
             logger.debug("Have master title '%s' dated %s-%02d", master_title, master_year, master_month)
 
-        # Check if this is a live recording
-        logger.debug("Scanning '%s' for live markers", field_to_check)
+        # Check if this is a live recording (scan title AND notes)
+        text_to_scan = f"{field_to_check}\n{notes}".strip()
+        logger.debug("Scanning title + notes for live markers on '%s'", self.release_title)
         self.is_live = any(
-            kw.lower() in field_to_check.lower() for kw in LIVE_KEYWORDS
+            kw.lower() in text_to_scan.lower() for kw in LIVE_KEYWORDS
         )
         logger.debug("Determined '%s' as live recording: %s", self.release_title, self.is_live)
 
