@@ -21,7 +21,7 @@ class RecordingType(str, Enum):
 INSIGNIFICANT_LEADING_WORDS = {"The", "A", "An"}
 
 # Keywords that indicate a live recording
-LIVE_KEYWORDS = ["live", "recorded at", "concert", "venue"]
+LIVE_KEYWORDS = ["live", "recorded live", "live at", "live in", "performed live", "concert", "venue"]
 
 # Artist names that indicate a compilation / various-artists release
 COMPILATION_ARTISTS = {"Various", "Various Artists"}
