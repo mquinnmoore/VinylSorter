@@ -150,10 +150,13 @@ class VinylRecord:
             logger.debug("Have master title '%s' dated %s-%02d", master_title, master_year, master_month)
 
         # Check if this is a live recording (scan title AND notes)
+        # Use word-boundary matching to avoid false positives like
+        # "Avenue" matching "venue" or "delivered" matching "live".
         text_to_scan = f"{field_to_check}\n{notes}".strip()
         logger.debug("Scanning title + notes for live markers on '%s'", self.release_title)
         self.is_live = any(
-            kw.lower() in text_to_scan.lower() for kw in LIVE_KEYWORDS
+            re.search(rf"\b{re.escape(kw)}\b", text_to_scan, re.IGNORECASE)
+            for kw in LIVE_KEYWORDS
         )
         logger.debug("Determined '%s' as live recording: %s", self.release_title, self.is_live)
 
