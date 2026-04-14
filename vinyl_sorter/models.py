@@ -11,7 +11,8 @@ from .constants import (
     ArtistType,
     COMPILATION_ARTISTS,
     INSIGNIFICANT_LEADING_WORDS,
-    LIVE_KEYWORDS,
+    LIVE_KEYWORDS_NOTES,
+    LIVE_KEYWORDS_TITLE,
     PARENTHETICAL_NUMBER_RE,
 )
 
@@ -149,16 +150,22 @@ class VinylRecord:
             field_to_check = master_title
             logger.debug("Have master title '%s' dated %s-%02d", master_title, master_year, master_month)
 
-        # Check if this is a live recording (scan title AND notes)
-        # Use word-boundary matching to avoid false positives like
-        # "Avenue" matching "venue" or "delivered" matching "live".
-        text_to_scan = f"{field_to_check}\n{notes}".strip()
+        # Check if this is a live recording.
+        # Title gets broad keywords ("live" in a title almost always means live album).
+        # Notes get stricter phrases (bare "live" appears too often in studio credits).
+        # Word-boundary matching avoids "Avenue" → "venue" etc.
         logger.debug("Scanning title + notes for live markers on '%s'", self.release_title)
-        self.is_live = any(
-            re.search(rf"\b{re.escape(kw)}\b", text_to_scan, re.IGNORECASE)
-            for kw in LIVE_KEYWORDS
+        title_match = any(
+            re.search(rf"\b{re.escape(kw)}\b", field_to_check, re.IGNORECASE)
+            for kw in LIVE_KEYWORDS_TITLE
         )
-        logger.debug("Determined '%s' as live recording: %s", self.release_title, self.is_live)
+        notes_match = bool(notes) and any(
+            re.search(rf"\b{re.escape(kw)}\b", notes, re.IGNORECASE)
+            for kw in LIVE_KEYWORDS_NOTES
+        )
+        self.is_live = title_match or notes_match
+        logger.debug("Determined '%s' as live recording: %s (title=%s, notes=%s)",
+                     self.release_title, self.is_live, title_match, notes_match)
 
         if self.is_live:
             live_year = api.lookup_live_year(self.discogs_id)
