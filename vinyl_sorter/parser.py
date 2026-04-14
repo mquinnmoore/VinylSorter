@@ -84,6 +84,7 @@ def parse_collection(
 
         # --- Sort Artist ---
         used_persisted = False
+        needed_computation = False
 
         if (
             not force_reparse
@@ -117,7 +118,7 @@ def parse_collection(
             record.is_compilation = last_is_compilation
         else:
             record.sort_artist = record.compute_sort_artist(api)
-            computed_count += 1
+            needed_computation = True
 
         logger.debug("Parsed '%s' → '%s'", record.release_artist, record.sort_artist)
 
@@ -140,11 +141,14 @@ def parse_collection(
         else:
             record.sort_year, record.sort_month = record.compute_sort_date(api)
             if not used_persisted:
-                computed_count += 1
+                needed_computation = True
             logger.debug(
                 "Parsed '%s' as dated %s-%02d",
                 record.release_title, record.sort_year, record.sort_month,
             )
+
+        if needed_computation:
+            computed_count += 1
 
     logger.info(
         "Parsing complete. %d records required fresh computation.", computed_count
