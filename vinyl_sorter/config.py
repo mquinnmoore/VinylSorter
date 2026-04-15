@@ -31,6 +31,13 @@ class Config:
     # Artist alias file (JSON mapping artist name → sort alias)
     alias_file: Optional[str] = None
 
+    # Output format
+    output_format: str = "csv"
+
+    # API server
+    serve: bool = False
+    port: int = 8000
+
     # Persistence options
     force_reparse: bool = False
     no_write_back: bool = False
@@ -57,6 +64,9 @@ class Config:
             log_file=args.log_file,
             log_level=args.log_level.upper(),
             alias_file=args.alias_file,
+            output_format=getattr(args, "output_format", "csv"),
+            serve=getattr(args, "serve", False),
+            port=getattr(args, "port", 8000),
             force_reparse=args.force_reparse,
             no_write_back=args.no_write_back,
             field_sort_artist=args.field_sort_artist,

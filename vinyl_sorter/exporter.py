@@ -1,8 +1,9 @@
 """Export the sorted collection to a file."""
 
 import csv
+import json
 import logging
-from typing import List
+from typing import Any, Dict, List
 
 from .models import VinylRecord
 
@@ -45,4 +46,62 @@ def export_collection(
                 "Compilation": "Yes" if record.is_compilation else "",
             })
 
+    logger.info("Wrote %d records to '%s'.", len(records), output_file)
+
+
+def record_to_dict(record: VinylRecord) -> Dict[str, Any]:
+    """Convert a VinylRecord to a JSON-serializable dictionary.
+
+    This is the canonical schema used by both JSON export and the API.
+
+    Args:
+        record: A VinylRecord object.
+
+    Returns:
+        Dictionary with all record fields.
+    """
+    return {
+        "discogs_id": record.discogs_id,
+        "sort_sequence": record.sort_sequence,
+        "release_artist": record.release_artist,
+        "sort_artist": record.sort_artist,
+        "release_title": record.release_title,
+        "release_year": record.release_year,
+        "sort_year": record.sort_year,
+        "sort_month": record.sort_month,
+        "is_compilation": record.is_compilation,
+        "is_live": record.is_live,
+        "cover_image_url": record.cover_image_url,
+        "thumb_url": record.thumb_url,
+    }
+
+
+def export_collection_json(records: List[VinylRecord]) -> List[Dict[str, Any]]:
+    """Convert the sorted collection to a list of JSON-serializable dicts.
+
+    Uses the same schema the API returns.
+
+    Args:
+        records: Sorted list of VinylRecord objects.
+
+    Returns:
+        List of dictionaries, one per record.
+    """
+    return [record_to_dict(r) for r in records]
+
+
+def export_collection_json_file(
+    records: List[VinylRecord],
+    output_file: str = "sorted_vinyl_collection.json",
+) -> None:
+    """Write the sorted collection to a JSON file.
+
+    Args:
+        records: Sorted list of VinylRecord objects.
+        output_file: Path to the output file.
+    """
+    logger.info("Saving sorted collection to '%s' (JSON)…", output_file)
+    data = export_collection_json(records)
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
     logger.info("Wrote %d records to '%s'.", len(records), output_file)

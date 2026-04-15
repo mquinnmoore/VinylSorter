@@ -6,7 +6,7 @@ import sys
 from .cli import parse_args
 from .config import Config
 from .discogs_api import DiscogsAPI
-from .exporter import export_collection
+from .exporter import export_collection, export_collection_json_file
 from .loader import load_collection
 from .parser import load_aliases, parse_collection
 from .persistence import write_back_sort_data
@@ -99,8 +99,24 @@ def main() -> None:
     # Sort
     sorted_records = sort_collection(records)
 
+    # Serve mode: start the FastAPI server with the sorted collection
+    if config.serve:
+        print(f"Starting API server on port {config.port}…")
+        from .api import create_app
+        import uvicorn
+
+        app = create_app(sorted_records)
+        uvicorn.run(app, host="0.0.0.0", port=config.port)
+        return  # uvicorn.run blocks; when it exits, we're done
+
     # Export
-    export_collection(sorted_records, output_file=config.output_file, delimiter=config.delimiter)
+    if config.output_format == "json":
+        output_file = config.output_file
+        if output_file.endswith(".csv"):
+            output_file = output_file.rsplit(".", 1)[0] + ".json"
+        export_collection_json_file(sorted_records, output_file=output_file)
+    else:
+        export_collection(sorted_records, output_file=config.output_file, delimiter=config.delimiter)
 
     # Write back (unless --no-write-back)
     if has_fields and not config.no_write_back:
@@ -113,7 +129,10 @@ def main() -> None:
     elif config.no_write_back:
         print("Skipping write-back (--no-write-back).")
 
-    print(f"Done! {len(sorted_records)} records sorted → {config.output_file}")
+    output_path = config.output_file
+    if config.output_format == "json" and output_path.endswith(".csv"):
+        output_path = output_path.rsplit(".", 1)[0] + ".json"
+    print(f"Done! {len(sorted_records)} records sorted → {output_path}")
 
 
 if __name__ == "__main__":
