@@ -74,7 +74,7 @@ def load_collection(
             release_artist_id=release.artists[0].id,
             release_title=release.title,
             release_year=release.year,
-            instance_id=getattr(item, "id", -1),
+            instance_id=getattr(item, "instance_id", -1),
             folder_id=getattr(item, "folder_id", folder_index),
             persisted_sort_artist=persisted_artist,
             persisted_sort_year=persisted_year,
