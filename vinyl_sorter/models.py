@@ -69,6 +69,10 @@ class VinylRecord:
     sort_month: int = 0  # 0 = unknown; 1–12 = Jan–Dec
     sort_sequence: int = -1
 
+    # Cover art URLs (from Discogs release object)
+    cover_image_url: str = ""
+    thumb_url: str = ""
+
     # Import order tracking
     import_number: int = field(default=-1, repr=False)
 

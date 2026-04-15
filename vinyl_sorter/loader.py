@@ -68,6 +68,22 @@ def load_collection(
                 elif fid == field_ids.get("is_compilation"):
                     persisted_compilation = val.lower() in ("yes", "true", "1")
 
+        # Extract cover art URLs from the release object
+        thumb = getattr(release, "thumb", "") or ""
+        cover_image = ""
+        try:
+            images = getattr(release, "images", None)
+            if images:
+                # Prefer the primary image; fall back to the first available
+                for img in images:
+                    if img.get("type") == "primary":
+                        cover_image = img.get("uri", "") or img.get("resource_url", "")
+                        break
+                if not cover_image:
+                    cover_image = images[0].get("uri", "") or images[0].get("resource_url", "")
+        except Exception:
+            pass  # Cover art extraction is best-effort
+
         record = VinylRecord(
             discogs_id=release.id,
             release_artist=release.artists[0].name,
@@ -80,6 +96,8 @@ def load_collection(
             persisted_sort_year=persisted_year,
             persisted_sort_month=persisted_month,
             persisted_is_compilation=persisted_compilation,
+            cover_image_url=cover_image,
+            thumb_url=thumb,
         )
 
         if persisted_artist:
