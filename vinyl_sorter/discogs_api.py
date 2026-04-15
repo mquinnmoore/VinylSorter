@@ -9,7 +9,7 @@ import functools
 import logging
 import re
 import time
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import discogs_client
 import requests
@@ -78,7 +78,14 @@ class DiscogsAPI:
     def __init__(self, user_agent: str, token: str) -> None:
         self._client = discogs_client.Client(user_agent, user_token=token)
         self._user = self._client.identity()
-        logger.info("Logged into Discogs as %s", self._user)
+        self._token = token
+        self._username = self._user.username
+        logger.info("Logged into Discogs as %s", self._username)
+
+    @property
+    def username(self) -> str:
+        """The authenticated Discogs username."""
+        return self._username
 
     # -- Collection -----------------------------------------------------------
 
@@ -106,41 +113,85 @@ class DiscogsAPI:
 
     # -- Release / Master -----------------------------------------------------
 
-    def lookup_master_fields(self, release_id: int) -> Tuple[bool, str, int, int]:
-        """Return (master_exists, master_title, master_year, master_month) for a release.
+    def lookup_master_fields(self, release_id: int) -> Tuple[bool, str, int, int, str]:
+        """Return (master_exists, master_title, master_year, master_month, notes) for a release.
 
-        Returns (False, "Unknown", -1, 0) if the release or master cannot
-        be fetched (e.g. empty API response, network errors).
+        ``notes`` is the combined release + master notes text (for live-keyword
+        scanning).  Returns (False, "Unknown", -1, 0, "") if the release or
+        master cannot be fetched.
         """
         try:
             release_info = self._client.release(release_id)
+            # Collect notes from both release and master for live detection
+            release_notes = getattr(release_info, 'notes', '') or ''
+            master_notes = ''
+
             if release_info.master:
                 title = release_info.master.title
                 year = release_info.master.year
-                # Try to get month from the master's main_release date
+                master_notes = getattr(release_info.master, 'notes', '') or ''
                 month = 0
+
+                # Try to extract month from the master's main release date.
+                # The Discogs API returns a 'released' field (e.g. "1969-01-12",
+                # "1969-01", or just "1969").  We fetch it via direct API call
+                # since the client library's lazy objects don't always populate
+                # the data dict reliably.
                 try:
                     main_release = release_info.master.main_release
                     if main_release:
-                        date_str = getattr(main_release, 'date_added', '') or ''
-                        # Also check data dict for released date
-                        data = getattr(main_release, 'data', {}) or {}
-                        released = data.get('released', '') or ''
-                        if released and '-' in released:
-                            parts = released.split('-')
-                            if len(parts) >= 2:
-                                try:
-                                    month = int(parts[1])
-                                except (ValueError, IndexError):
-                                    pass
+                        main_release_id = getattr(main_release, 'id', None)
+                        if main_release_id:
+                            month = self._fetch_release_month(main_release_id)
                 except Exception:
                     pass  # Month extraction is best-effort
+
+                # If main release didn't yield a month, try the release itself
+                if month == 0:
+                    month = self._fetch_release_month(release_id)
+
+                combined_notes = f"{release_notes}\n{master_notes}".strip()
                 logger.debug("Found master '%s' dated %s-%02d", title, year, month)
-                return True, title, year, month
+                return True, title, year, month, combined_notes
+
+            # No master — still return release notes
+            return False, "Unknown", -1, 0, release_notes
         except Exception as exc:
             logger.warning("Could not look up master for release %d: %s", release_id, exc)
 
-        return False, "Unknown", -1, 0
+        return False, "Unknown", -1, 0, ""
+
+    def _fetch_release_month(self, release_id: int) -> int:
+        """Fetch the release month from the Discogs API 'released' field.
+
+        The 'released' field can be 'YYYY-MM-DD', 'YYYY-MM', or just 'YYYY'.
+        Returns 1–12 if a month is found, 0 otherwise.
+        """
+        try:
+            url = f"https://api.discogs.com/releases/{release_id}"
+            resp = requests.get(
+                url,
+                headers={
+                    "User-Agent": self._client.user_agent,
+                    "Authorization": f"Discogs token={self._token}",
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            released = resp.json().get("released", "") or ""
+            if released and "-" in released:
+                parts = released.split("-")
+                if len(parts) >= 2:
+                    month = int(parts[1])
+                    if 1 <= month <= 12:
+                        logger.debug(
+                            "Extracted month %d from release %d ('%s')",
+                            month, release_id, released,
+                        )
+                        return month
+        except Exception as exc:
+            logger.debug("Could not fetch month for release %d: %s", release_id, exc)
+        return 0
 
     def lookup_live_year(self, release_id: int) -> Optional[int]:
         """Search release and master text fields for a live-performance year."""
@@ -178,6 +229,102 @@ class DiscogsAPI:
         except Exception as exc:
             logger.error("Error processing release %d: %s", release_id, exc)
             return None
+
+    # -- Custom Fields (persistence) ------------------------------------------
+
+    def get_custom_fields(self) -> List[Dict]:
+        """Fetch the user's collection custom field definitions.
+
+        Returns:
+            List of field dicts with 'id', 'name', 'type', etc.
+        """
+        try:
+            url = f"https://api.discogs.com/users/{self._username}/collection/fields"
+            resp = requests.get(
+                url,
+                headers={
+                    "User-Agent": self._client.user_agent,
+                    "Authorization": f"Discogs token={self._token}",
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            fields = resp.json().get("fields", [])
+            logger.info("Found %d custom fields in Discogs collection.", len(fields))
+            return fields
+        except Exception as exc:
+            logger.warning("Could not fetch custom fields: %s", exc)
+            return []
+
+    def resolve_field_ids(
+        self, field_names: Dict[str, str]
+    ) -> Dict[str, Optional[int]]:
+        """Map logical field names to Discogs field IDs by matching on name.
+
+        Args:
+            field_names: Mapping of logical name → Discogs field label.
+                e.g. {"sort_artist": "Sort Artist", "sort_year": "Sort Year"}
+
+        Returns:
+            Mapping of logical name → field_id (or None if not found).
+        """
+        fields = self.get_custom_fields()
+        result: Dict[str, Optional[int]] = {k: None for k in field_names}
+
+        for f in fields:
+            for logical, label in field_names.items():
+                if f.get("name", "").strip().lower() == label.strip().lower():
+                    result[logical] = f["id"]
+                    logger.debug("Mapped '%s' → field_id %d", label, f["id"])
+
+        return result
+
+    def write_custom_field(
+        self,
+        folder_id: int,
+        release_id: int,
+        instance_id: int,
+        field_id: int,
+        value: str,
+    ) -> bool:
+        """Write a value to a custom field on a collection instance.
+
+        Args:
+            folder_id: Collection folder ID.
+            release_id: Discogs release ID.
+            instance_id: Collection instance ID.
+            field_id: Custom field ID.
+            value: Value to write (string).
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        try:
+            url = (
+                f"https://api.discogs.com/users/{self._username}"
+                f"/collection/folders/{folder_id}/releases/{release_id}"
+                f"/instances/{instance_id}/fields/{field_id}"
+            )
+            resp = requests.post(
+                url,
+                json={"value": str(value)},
+                headers={
+                    "User-Agent": self._client.user_agent,
+                    "Authorization": f"Discogs token={self._token}",
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            logger.debug(
+                "Wrote field %d = '%s' on instance %d", field_id, value, instance_id
+            )
+            return True
+        except Exception as exc:
+            logger.warning(
+                "Failed to write field %d on instance %d: %s",
+                field_id, instance_id, exc,
+            )
+            return False
 
 
 # ---------------------------------------------------------------------------

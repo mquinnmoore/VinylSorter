@@ -20,8 +20,13 @@ class RecordingType(str, Enum):
 # Words to strip from the beginning of group names for sorting
 INSIGNIFICANT_LEADING_WORDS = {"The", "A", "An"}
 
-# Keywords that indicate a live recording
-LIVE_KEYWORDS = ["live", "recorded at", "concert", "venue"]
+# Keywords that indicate a live recording.
+# LIVE_KEYWORDS_TITLE  — broad set, safe for title scanning ("live" in a title
+#                        almost always means a live album).
+# LIVE_KEYWORDS_NOTES  — stricter phrases for notes scanning (bare "live" appears
+#                        too often in studio album notes — bonus tracks, credits, etc.).
+LIVE_KEYWORDS_TITLE = ["live", "recorded live", "live at", "live in", "performed live", "concert", "venue"]
+LIVE_KEYWORDS_NOTES = ["recorded live", "live at", "live in", "performed live", "live concert"]
 
 # Artist names that indicate a compilation / various-artists release
 COMPILATION_ARTISTS = {"Various", "Various Artists"}

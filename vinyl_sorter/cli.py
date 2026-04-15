@@ -81,4 +81,39 @@ def parse_args(argv=None) -> argparse.Namespace:
         help="JSON file mapping artist names to sort aliases",
     )
 
+    # Persistence
+    persist = parser.add_argument_group("Persistence (Discogs custom fields)")
+    persist.add_argument(
+        "--force-reparse",
+        action="store_true",
+        default=False,
+        help="Ignore persisted sort data and recompute everything",
+    )
+    persist.add_argument(
+        "--no-write-back",
+        action="store_true",
+        default=False,
+        help="Don't write computed sort data back to Discogs",
+    )
+    persist.add_argument(
+        "--field-sort-artist",
+        default="Sort Artist",
+        help="Name of the Discogs custom field for sort artist (default: 'Sort Artist')",
+    )
+    persist.add_argument(
+        "--field-sort-year",
+        default="Sort Year",
+        help="Name of the Discogs custom field for sort year (default: 'Sort Year')",
+    )
+    persist.add_argument(
+        "--field-sort-month",
+        default="Sort Month",
+        help="Name of the Discogs custom field for sort month (default: 'Sort Month')",
+    )
+    persist.add_argument(
+        "--field-is-compilation",
+        default="Is Compilation",
+        help="Name of the Discogs custom field for compilation flag (default: 'Is Compilation')",
+    )
+
     return parser.parse_args(argv)

@@ -5,13 +5,14 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Tuple, Optional
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from .constants import (
     ArtistType,
     COMPILATION_ARTISTS,
     INSIGNIFICANT_LEADING_WORDS,
-    LIVE_KEYWORDS,
+    LIVE_KEYWORDS_NOTES,
+    LIVE_KEYWORDS_TITLE,
     PARENTHETICAL_NUMBER_RE,
 )
 
@@ -48,6 +49,16 @@ class VinylRecord:
     release_artist_id: int = -1
     release_title: str = "None"
     release_year: int = -1
+
+    # Discogs collection instance fields (needed for write-back)
+    instance_id: int = -1
+    folder_id: int = 0
+
+    # Persisted values from Discogs custom fields (None = not yet stored)
+    persisted_sort_artist: Optional[str] = None
+    persisted_sort_year: Optional[int] = None
+    persisted_sort_month: Optional[int] = None
+    persisted_is_compilation: Optional[bool] = None
 
     # Derived fields (populated during parsing)
     release_artist_type: ArtistType = ArtistType.UNKNOWN
@@ -130,7 +141,7 @@ class VinylRecord:
         field_to_check = self.release_title
 
         # Check for a master release (original release date)
-        master_exists, master_title, master_year, master_month = api.lookup_master_fields(
+        master_exists, master_title, master_year, master_month, notes = api.lookup_master_fields(
             self.discogs_id
         )
         if master_exists:
@@ -139,12 +150,22 @@ class VinylRecord:
             field_to_check = master_title
             logger.debug("Have master title '%s' dated %s-%02d", master_title, master_year, master_month)
 
-        # Check if this is a live recording
-        logger.debug("Scanning '%s' for live markers", field_to_check)
-        self.is_live = any(
-            kw.lower() in field_to_check.lower() for kw in LIVE_KEYWORDS
+        # Check if this is a live recording.
+        # Title gets broad keywords ("live" in a title almost always means live album).
+        # Notes get stricter phrases (bare "live" appears too often in studio credits).
+        # Word-boundary matching avoids "Avenue" → "venue" etc.
+        logger.debug("Scanning title + notes for live markers on '%s'", self.release_title)
+        title_match = any(
+            re.search(rf"\b{re.escape(kw)}\b", field_to_check, re.IGNORECASE)
+            for kw in LIVE_KEYWORDS_TITLE
         )
-        logger.debug("Determined '%s' as live recording: %s", self.release_title, self.is_live)
+        notes_match = bool(notes) and any(
+            re.search(rf"\b{re.escape(kw)}\b", notes, re.IGNORECASE)
+            for kw in LIVE_KEYWORDS_NOTES
+        )
+        self.is_live = title_match or notes_match
+        logger.debug("Determined '%s' as live recording: %s (title=%s, notes=%s)",
+                     self.release_title, self.is_live, title_match, notes_match)
 
         if self.is_live:
             live_year = api.lookup_live_year(self.discogs_id)
