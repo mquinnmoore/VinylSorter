@@ -93,6 +93,20 @@ class DiscogsAPI:
         """Iterate over releases in a collection folder."""
         return self._user.collection_folders[folder_index].releases
 
+    def collection_count(self, folder_index: int = 0) -> int:
+        """Return the number of items in a collection folder.
+
+        This is a single lightweight API call — the folder object
+        exposes ``count`` without fetching individual releases.
+
+        Args:
+            folder_index: Collection folder index (0 = all items).
+
+        Returns:
+            Number of releases in the folder.
+        """
+        return self._user.collection_folders[folder_index].count
+
     # -- Artist ---------------------------------------------------------------
 
     def lookup_artist_type(self, artist_id: int) -> ArtistType:

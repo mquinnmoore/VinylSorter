@@ -46,6 +46,11 @@ class Config:
     field_sort_month: str = "Sort Month"
     field_is_compilation: str = "Is Compilation"
 
+    # Local cache options
+    refresh: bool = False
+    cache_file: str = ".vinyl_sorter_cache.json"
+    no_cache: bool = False
+
     @classmethod
     def from_args(cls, args) -> "Config":
         """Build config from parsed CLI arguments, falling back to env vars."""
@@ -73,4 +78,7 @@ class Config:
             field_sort_year=args.field_sort_year,
             field_sort_month=args.field_sort_month,
             field_is_compilation=args.field_is_compilation,
+            refresh=getattr(args, "refresh", False),
+            cache_file=getattr(args, "cache_file", ".vinyl_sorter_cache.json"),
+            no_cache=getattr(args, "no_cache", False),
         )

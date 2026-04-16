@@ -94,6 +94,18 @@ class RefreshResponse(BaseModel):
     message: str
 
 
+class CacheStatusResponse(BaseModel):
+    """API response for cache status."""
+
+    has_cache: bool = Field(..., description="Whether a local cache file exists")
+    cached_at: Optional[str] = Field(None, description="ISO timestamp of when the cache was written")
+    cached_ago: Optional[str] = Field(None, description="Human-friendly time since cache was written")
+    record_count: Optional[int] = Field(None, description="Number of records in the cache")
+    cache_file: Optional[str] = Field(None, description="Path to the cache file")
+    discogs_count: Optional[int] = Field(None, description="Current Discogs collection count")
+    is_current: Optional[bool] = Field(None, description="Whether cache count matches Discogs count")
+
+
 # ---------------------------------------------------------------------------
 # Collection state
 # ---------------------------------------------------------------------------
@@ -184,18 +196,29 @@ def _run_pipeline() -> List[VinylRecord]:
 # App factory
 # ---------------------------------------------------------------------------
 
-def create_app(records: Optional[List[VinylRecord]] = None) -> FastAPI:
+def create_app(
+    records: Optional[List[VinylRecord]] = None,
+    config: Optional[Any] = None,
+) -> FastAPI:
     """Create the FastAPI application.
 
     Args:
         records: Pre-sorted records from the CLI pipeline. If None,
             the API will run the pipeline on first request using
             environment variables for configuration.
+        config: Optional Config object for cache file location.
 
     Returns:
         Configured FastAPI application instance.
     """
     from . import __version__
+    from .cache import get_cache_metadata, save_cache, DEFAULT_CACHE_FILE
+
+    cache_file = DEFAULT_CACHE_FILE
+    no_cache = False
+    if config is not None:
+        cache_file = getattr(config, "cache_file", DEFAULT_CACHE_FILE)
+        no_cache = getattr(config, "no_cache", False)
 
     app = FastAPI(
         title="VinylSorter API",
@@ -310,6 +333,14 @@ def create_app(records: Optional[List[VinylRecord]] = None) -> FastAPI:
         try:
             sorted_records = _run_pipeline()
             state.set_records(sorted_records)
+
+            # Update the local cache file
+            if not no_cache:
+                try:
+                    save_cache(sorted_records, cache_file)
+                except Exception as exc:
+                    logger.warning("Failed to update cache after refresh: %s", exc)
+
             return RefreshResponse(
                 status="ok",
                 record_count=len(sorted_records),
@@ -317,6 +348,53 @@ def create_app(records: Optional[List[VinylRecord]] = None) -> FastAPI:
             )
         except RuntimeError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    @app.get(
+        "/collection/cache-status",
+        response_model=CacheStatusResponse,
+        tags=["system"],
+    )
+    def cache_status():
+        """Return metadata about the local cache file.
+
+        Includes whether the cache exists, when it was last updated,
+        the record count, and whether it matches the current Discogs
+        collection count.
+        """
+        if no_cache:
+            return CacheStatusResponse(
+                has_cache=False,
+            )
+
+        meta = get_cache_metadata(cache_file)
+        if meta is None:
+            return CacheStatusResponse(
+                has_cache=False,
+            )
+
+        # Try a lightweight Discogs count check
+        discogs_count = None
+        is_current = None
+        try:
+            token = os.environ.get("DISCOGS_TOKEN", "")
+            if token:
+                from .discogs_api import DiscogsAPI as _API
+                user_agent = os.environ.get("DISCOGS_USER_AGENT", "VinylSorter/2.0")
+                _api = _API(user_agent=user_agent, token=token)
+                discogs_count = _api.collection_count()
+                is_current = (discogs_count == meta.record_count)
+        except Exception as exc:
+            logger.warning("Could not check Discogs count for cache-status: %s", exc)
+
+        return CacheStatusResponse(
+            has_cache=True,
+            cached_at=meta.cached_at.isoformat(),
+            cached_ago=meta.cached_ago,
+            record_count=meta.record_count,
+            cache_file=meta.cache_file,
+            discogs_count=discogs_count,
+            is_current=is_current,
+        )
 
     return app
 

@@ -6,6 +6,9 @@ DiscogsToken.txt
 *.csv
 *.log
 
+# Local cache
+.vinyl_sorter_cache.json
+
 # Python
 __pycache__/
 *.pyc

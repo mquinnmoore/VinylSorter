@@ -53,6 +53,8 @@ def record_to_dict(record: VinylRecord) -> Dict[str, Any]:
     """Convert a VinylRecord to a JSON-serializable dictionary.
 
     This is the canonical schema used by both JSON export and the API.
+    Includes all fields needed for display; see ``cache._record_to_cache_dict()``
+    for the full-fidelity version used by the local cache.
 
     Args:
         record: A VinylRecord object.
@@ -64,6 +66,7 @@ def record_to_dict(record: VinylRecord) -> Dict[str, Any]:
         "discogs_id": record.discogs_id,
         "sort_sequence": record.sort_sequence,
         "release_artist": record.release_artist,
+        "release_artist_id": record.release_artist_id,
         "sort_artist": record.sort_artist,
         "release_title": record.release_title,
         "release_year": record.release_year,
@@ -73,6 +76,9 @@ def record_to_dict(record: VinylRecord) -> Dict[str, Any]:
         "is_live": record.is_live,
         "cover_image_url": record.cover_image_url,
         "thumb_url": record.thumb_url,
+        "instance_id": record.instance_id,
+        "folder_id": record.folder_id,
+        "import_number": record.import_number,
     }
 
 
