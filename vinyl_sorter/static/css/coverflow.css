@@ -24,7 +24,7 @@
     position: relative;
     width: 100%;
     max-width: 1200px;
-    height: 460px;
+    height: 500px;
     perspective: 900px;
     perspective-origin: 50% 40%;
     overflow: visible;
@@ -43,10 +43,10 @@
 /* --- Individual album item --------------------------------- */
 .coverflow-item {
     position: absolute;
-    width: 350px;
-    height: 350px;
+    width: 385px;
+    height: 385px;
     top: 20px;
-    left: -175px; /* center the item (half of width) */
+    left: -192.5px; /* center the item (half of width) */
     cursor: pointer;
     transition: transform 0.38s ease, opacity 0.38s ease, z-index 0s;
     transform-style: preserve-3d;

@@ -18,8 +18,8 @@ var CoverFlow = (function () {
     const CFG = {
         VISIBLE_SIDE: 6,           // albums visible on each side of center
         RENDER_BUFFER: 10,         // extra items to keep in DOM beyond visible
-        ITEM_SIZE: 350,            // px — center album size (matches CSS) — bumped ~10%
-        SIDE_OFFSET: 200,          // px — distance of first side album from center (pushed out so sides don't overlap center)
+        ITEM_SIZE: 385,            // px — center album size (matches CSS) — another 10% bump
+        SIDE_OFFSET: 220,          // px — distance of first side album from center (pushed out so sides don't overlap center)
         SIDE_SPACING: 70,          // px — distance between stacked side albums
         SIDE_ROTATION: 65,         // degrees — Y-rotation for side albums
         SIDE_SCALE: 0.75,          // scale factor for immediate side albums
@@ -150,14 +150,22 @@ var CoverFlow = (function () {
         // offset = distance from center (negative = left, positive = right)
         let tx, ry, sc, op, z;
 
+        // Use translateZ to enforce stacking order in 3D space.
+        // With preserve-3d, z-index alone doesn't work — the browser
+        // uses actual Z position from transforms. We push the center
+        // forward and side albums backward so the center is always in front.
+
         if (offset === 0) {
-            // Center — always on top
+            // Center — pushed forward in Z so it's always in front
             tx = 0;
             ry = 0;
             sc = 1;
             op = 1;
             z = 100;
             el.classList.add('cf-center');
+            el.style.transform =
+                'translate3d(0, 0, 200px) ' +
+                'scale3d(1, 1, 1)';
         } else {
             el.classList.remove('cf-center');
             const absOffset = Math.abs(offset);
@@ -175,14 +183,16 @@ var CoverFlow = (function () {
             // Opacity: gentler fade — stay mostly opaque near center
             op = Math.max(0.35, 1 - absOffset * CFG.OPACITY_STEP);
 
-            // Z-index: side albums always below center, closer = higher
+            // Z: push side albums behind center (further albums further back)
+            var tz = -absOffset * 10;
             z = 50 - absOffset;
+
+            el.style.transform =
+                'translate3d(' + tx + 'px, 0, ' + tz + 'px) ' +
+                'rotateY(' + ry + 'deg) ' +
+                'scale3d(' + sc + ', ' + sc + ', 1)';
         }
 
-        el.style.transform =
-            'translate3d(' + tx + 'px, 0, 0) ' +
-            'rotateY(' + ry + 'deg) ' +
-            'scale3d(' + sc + ', ' + sc + ', 1)';
         el.style.opacity = op;
         el.style.zIndex = Math.max(0, z);
     }
