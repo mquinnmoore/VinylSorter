@@ -24,7 +24,7 @@
     position: relative;
     width: 100%;
     max-width: 1200px;
-    height: 420px;
+    height: 460px;
     perspective: 900px;
     perspective-origin: 50% 40%;
     overflow: visible;
@@ -43,10 +43,10 @@
 /* --- Individual album item --------------------------------- */
 .coverflow-item {
     position: absolute;
-    width: 320px;
-    height: 320px;
+    width: 350px;
+    height: 350px;
     top: 20px;
-    left: -160px; /* center the item (half of width) */
+    left: -175px; /* center the item (half of width) */
     cursor: pointer;
     transition: transform 0.38s ease, opacity 0.38s ease, z-index 0s;
     transform-style: preserve-3d;
@@ -203,6 +203,45 @@
     margin-bottom: 1rem;
 }
 
+/* --- Nav arrows -------------------------------------------- */
+.cf-nav-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 200;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-secondary);
+    font-size: 2.5rem;
+    line-height: 1;
+    width: 52px;
+    height: 72px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.cf-nav-arrow:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+}
+
+.cf-nav-arrow:active {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.cf-nav-left {
+    left: 12px;
+}
+
+.cf-nav-right {
+    right: 12px;
+}
+
 /* --- Navigation hint --------------------------------------- */
 .coverflow-nav-hint {
     font-size: 0.7rem;
@@ -219,14 +258,20 @@
 /* --- Responsive -------------------------------------------- */
 @media (max-width: 768px) {
     .coverflow-stage {
-        height: 300px;
+        height: 320px;
     }
 
     .coverflow-item {
-        width: 220px;
-        height: 220px;
+        width: 240px;
+        height: 240px;
         top: 20px;
-        left: -110px;
+        left: -120px;
+    }
+
+    .cf-nav-arrow {
+        width: 40px;
+        height: 56px;
+        font-size: 2rem;
     }
 
     .coverflow-info .cf-title {

@@ -18,14 +18,15 @@ var CoverFlow = (function () {
     const CFG = {
         VISIBLE_SIDE: 6,           // albums visible on each side of center
         RENDER_BUFFER: 10,         // extra items to keep in DOM beyond visible
-        ITEM_SIZE: 320,            // px — center album size (matches CSS)
-        SIDE_OFFSET: 160,          // px — distance of first side album from center
+        ITEM_SIZE: 350,            // px — center album size (matches CSS) — bumped ~10%
+        SIDE_OFFSET: 200,          // px — distance of first side album from center (pushed out so sides don't overlap center)
         SIDE_SPACING: 70,          // px — distance between stacked side albums
         SIDE_ROTATION: 65,         // degrees — Y-rotation for side albums
         SIDE_SCALE: 0.75,          // scale factor for immediate side albums
         TRANSITION_MS: 380,        // ms — CSS transition duration (matches CSS)
-        OPACITY_STEP: 0.12,        // opacity reduction per step from center
-        DEBOUNCE_WHEEL_MS: 60,     // ms — wheel event debounce
+        OPACITY_STEP: 0.04,        // opacity reduction per step from center (much gentler fade)
+        DEBOUNCE_WHEEL_MS: 120,    // ms — wheel event debounce (less sensitive)
+        WHEEL_THRESHOLD: 80,       // accumulated delta before triggering a step
         PRELOAD_AHEAD: 5,          // images to preload ahead/behind current
         NAV_HINT_HIDE_MS: 5000,    // ms — hide nav hint after first interaction
     };
@@ -150,12 +151,12 @@ var CoverFlow = (function () {
         let tx, ry, sc, op, z;
 
         if (offset === 0) {
-            // Center
+            // Center — always on top
             tx = 0;
             ry = 0;
             sc = 1;
             op = 1;
-            z = CFG.VISIBLE_SIDE + 1;
+            z = 100;
             el.classList.add('cf-center');
         } else {
             el.classList.remove('cf-center');
@@ -171,11 +172,11 @@ var CoverFlow = (function () {
             // Scale: shrink slightly for depth
             sc = Math.max(0.5, CFG.SIDE_SCALE - (absOffset - 1) * 0.03);
 
-            // Opacity: fade with distance
-            op = Math.max(0.15, 1 - absOffset * CFG.OPACITY_STEP);
+            // Opacity: gentler fade — stay mostly opaque near center
+            op = Math.max(0.35, 1 - absOffset * CFG.OPACITY_STEP);
 
-            // Z-index: closer to center = higher
-            z = CFG.VISIBLE_SIDE + 1 - absOffset;
+            // Z-index: side albums always below center, closer = higher
+            z = 50 - absOffset;
         }
 
         el.style.transform =
@@ -342,7 +343,7 @@ var CoverFlow = (function () {
         _lastWheelTime = now;
 
         // Threshold for a step — handle both fine (trackpad) and coarse (mouse wheel) scrolling
-        var threshold = Math.abs(e.deltaMode === 1) ? 1 : 40;
+        var threshold = (e.deltaMode === 1) ? 3 : CFG.WHEEL_THRESHOLD;
         if (Math.abs(_wheelAccum) >= threshold) {
             var steps = _wheelAccum > 0 ? 1 : -1;
             _wheelAccum = 0;
@@ -412,6 +413,21 @@ var CoverFlow = (function () {
         _track = document.createElement('div');
         _track.className = 'coverflow-track';
         _stage.appendChild(_track);
+
+        // Left/right nav arrows
+        var leftArrow = document.createElement('button');
+        leftArrow.className = 'cf-nav-arrow cf-nav-left';
+        leftArrow.innerHTML = '&#8249;'; // ‹
+        leftArrow.setAttribute('aria-label', 'Previous album');
+        leftArrow.addEventListener('click', function () { goRelative(-1); });
+        _stage.appendChild(leftArrow);
+
+        var rightArrow = document.createElement('button');
+        rightArrow.className = 'cf-nav-arrow cf-nav-right';
+        rightArrow.innerHTML = '&#8250;'; // ›
+        rightArrow.setAttribute('aria-label', 'Next album');
+        rightArrow.addEventListener('click', function () { goRelative(1); });
+        _stage.appendChild(rightArrow);
 
         _container.appendChild(_stage);
 
