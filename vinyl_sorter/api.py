@@ -18,9 +18,13 @@ import logging
 import os
 import threading
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from .exporter import record_to_dict
@@ -220,11 +224,17 @@ def create_app(
         cache_file = getattr(config, "cache_file", DEFAULT_CACHE_FILE)
         no_cache = getattr(config, "no_cache", False)
 
+    _pkg_dir = Path(__file__).resolve().parent
+
     app = FastAPI(
         title="VinylSorter API",
         description="REST API for a sorted vinyl record collection powered by Discogs.",
         version=__version__,
     )
+
+    # Static files & templates
+    app.mount("/static", StaticFiles(directory=str(_pkg_dir / "static")), name="static")
+    templates = Jinja2Templates(directory=str(_pkg_dir / "templates"))
 
     state = _CollectionState()
     if records is not None:
@@ -246,6 +256,11 @@ def create_app(
     # ------------------------------------------------------------------
     # Endpoints
     # ------------------------------------------------------------------
+
+    @app.get("/", response_class=HTMLResponse, tags=["ui"])
+    def index(request: Request):
+        """Serve the collection browser UI."""
+        return templates.TemplateResponse("index.html", {"request": request})
 
     @app.get("/health", response_model=HealthResponse, tags=["system"])
     def health_check():
