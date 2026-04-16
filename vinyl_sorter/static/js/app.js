@@ -6,10 +6,21 @@
     'use strict';
 
     const container = document.getElementById('collection-container');
+    const cfContainer = document.getElementById('coverflow-container');
     const subtitle = document.getElementById('stats-subtitle');
     const overlay = document.getElementById('modal-overlay');
     const modal = document.getElementById('modal');
     const modalClose = document.getElementById('modal-close');
+
+    // View toggle elements
+    const viewToggle = document.getElementById('view-toggle');
+    const btnGrid = document.getElementById('btn-grid');
+    const btnFlow = document.getElementById('btn-flow');
+
+    // Shared state
+    let _allRecords = [];    // flat sorted array from API
+    let _currentView = 'grid';
+    let _coverFlowReady = false;
 
     // Modal fields
     const modalCoverImg = document.getElementById('modal-cover-img');
@@ -20,9 +31,97 @@
     const modalSortDetails = document.getElementById('modal-sort-details');
     const modalBadges = document.getElementById('modal-badges');
 
+    // ---- View Toggle ----
+
+    function initViewToggle() {
+        // Restore saved preference
+        var saved = localStorage.getItem('vinylsort-view');
+        if (saved === 'flow' || saved === 'grid') {
+            _currentView = saved;
+        }
+
+        btnGrid.addEventListener('click', function () { switchView('grid'); });
+        btnFlow.addEventListener('click', function () { switchView('flow'); });
+
+        // Apply initial state (after data load)
+        updateToggleUI();
+    }
+
+    function switchView(view) {
+        if (view === _currentView) return;
+        _currentView = view;
+        localStorage.setItem('vinylsort-view', view);
+        updateToggleUI();
+        applyView();
+    }
+
+    function updateToggleUI() {
+        btnGrid.classList.toggle('active', _currentView === 'grid');
+        btnFlow.classList.toggle('active', _currentView === 'flow');
+    }
+
+    function applyView() {
+        if (_currentView === 'grid') {
+            container.style.display = '';
+            cfContainer.classList.remove('active');
+
+            // If switching from flow, try to scroll grid near the same album
+            if (_coverFlowReady && typeof CoverFlow !== 'undefined') {
+                scrollGridToIndex(CoverFlow.getCurrentIndex());
+            }
+        } else {
+            container.style.display = 'none';
+            cfContainer.classList.add('active');
+
+            // Initialize CoverFlow if not yet done
+            if (!_coverFlowReady && _allRecords.length > 0) {
+                CoverFlow.init(cfContainer, _allRecords, {
+                    onOpenModal: openModal,
+                });
+                _coverFlowReady = true;
+            }
+
+            // Try to sync position from grid scroll
+            if (_coverFlowReady) {
+                var gridIndex = getApproxGridIndex();
+                if (gridIndex >= 0) {
+                    CoverFlow.goTo(gridIndex);
+                }
+            }
+        }
+    }
+
+    /** Approximate which album the user is looking at in the grid (by scroll position). */
+    function getApproxGridIndex() {
+        // Find the first album card that is in or near the viewport
+        var cards = container.querySelectorAll('.album-card');
+        var viewportTop = window.scrollY + window.innerHeight * 0.3;
+
+        for (var i = 0; i < cards.length; i++) {
+            var rect = cards[i].getBoundingClientRect();
+            var cardTop = rect.top + window.scrollY;
+            if (cardTop >= viewportTop - 200) {
+                // Cards don't store index directly, but they're in order.
+                // Match by position in the full records array.
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    /** Scroll the grid view so an album near the given index is visible. */
+    function scrollGridToIndex(index) {
+        var cards = container.querySelectorAll('.album-card');
+        if (index >= 0 && index < cards.length) {
+            cards[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
     // ---- Fetch & render ----
 
     async function init() {
+        initViewToggle();
+
         try {
             const [collectionRes, statsRes] = await Promise.all([
                 fetch('/collection'),
@@ -35,12 +134,17 @@
             const records = await collectionRes.json();
             const stats = await statsRes.json();
 
+            _allRecords = records;
+
             renderStats(stats);
 
             if (records.length === 0) {
                 renderEmpty();
+                viewToggle.style.display = 'none'; // hide toggle for empty collections
             } else {
                 renderCollection(records);
+                // Apply saved view preference now that data is loaded
+                applyView();
             }
         } catch (err) {
             console.error('Failed to load collection:', err);
@@ -50,6 +154,7 @@
                     <p>Could not load the collection.</p>
                     <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-muted);">${escapeHtml(err.message)}</p>
                 </div>`;
+            viewToggle.style.display = 'none';
         }
     }
 

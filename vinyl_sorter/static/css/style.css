@@ -58,6 +58,40 @@ body {
     color: var(--text-secondary);
 }
 
+/* --- View toggle ------------------------------------------- */
+.view-toggle {
+    display: inline-flex;
+    margin-top: 0.75rem;
+    background: var(--bg-surface);
+    border-radius: 100px;
+    padding: 3px;
+    gap: 2px;
+}
+
+.view-toggle-btn {
+    padding: 0.35rem 1.1rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: color var(--transition), background var(--transition);
+    letter-spacing: 0.01em;
+}
+
+.view-toggle-btn:hover {
+    color: var(--text-secondary);
+}
+
+.view-toggle-btn.active {
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
 /* --- Loading spinner --------------------------------------- */
 .loading {
     display: flex;

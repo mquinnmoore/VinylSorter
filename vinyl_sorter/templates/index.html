@@ -8,11 +8,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/coverflow.css">
 </head>
 <body>
     <header class="site-header">
         <h1 class="site-title">VinylSorter</h1>
         <p class="site-subtitle" id="stats-subtitle">Loading collection…</p>
+        <div class="view-toggle" id="view-toggle">
+            <button class="view-toggle-btn active" data-view="grid" id="btn-grid">Grid</button>
+            <button class="view-toggle-btn" data-view="flow" id="btn-flow">Flow</button>
+        </div>
     </header>
 
     <main id="collection-container">
@@ -21,6 +26,9 @@
             <p>Loading your collection…</p>
         </div>
     </main>
+
+    <!-- Cover Flow view -->
+    <div class="coverflow-container" id="coverflow-container"></div>
 
     <!-- Detail modal -->
     <div class="modal-overlay" id="modal-overlay">
@@ -42,6 +50,7 @@
         </div>
     </div>
 
+    <script src="/static/js/coverflow.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>
