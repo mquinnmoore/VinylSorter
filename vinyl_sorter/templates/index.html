@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VinylSorter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="site-header">
+        <h1 class="site-title">VinylSorter</h1>
+        <p class="site-subtitle" id="stats-subtitle">Loading collection…</p>
+    </header>
+
+    <main id="collection-container">
+        <div class="loading" id="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading your collection…</p>
+        </div>
+    </main>
+
+    <!-- Detail modal -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal" id="modal">
+            <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+            <div class="modal-content">
+                <div class="modal-cover">
+                    <img id="modal-cover-img" src="" alt="Album cover">
+                </div>
+                <div class="modal-info">
+                    <p class="modal-sort-num" id="modal-sort-num"></p>
+                    <h2 class="modal-title" id="modal-title"></h2>
+                    <p class="modal-artist" id="modal-artist"></p>
+                    <p class="modal-year" id="modal-year"></p>
+                    <p class="modal-sort-details" id="modal-sort-details"></p>
+                    <div class="modal-badges" id="modal-badges"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
