@@ -260,7 +260,7 @@ def create_app(
     @app.get("/", response_class=HTMLResponse, tags=["ui"])
     def index(request: Request):
         """Serve the collection browser UI."""
-        return templates.TemplateResponse("index.html", {"request": request})
+        return templates.TemplateResponse(request=request, name="index.html")
 
     @app.get("/health", response_model=HealthResponse, tags=["system"])
     def health_check():
