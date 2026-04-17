@@ -4,20 +4,55 @@ Having been dissatisfied with the widely available tools to organize my vinyl co
 
 ## Usage
 
+### CLI Mode (sort and export)
+
 ```bash
 # Install dependencies
 pip install -r requirements.txt
 
-# Run with a Discogs token
+# Run with a Discogs token (exports to CSV by default)
 python -m vinyl_sorter --token YOUR_TOKEN
 
 # Or set the token as an environment variable
 export DISCOGS_TOKEN=YOUR_TOKEN
 python -m vinyl_sorter
 
+# Export as JSON instead of CSV
+python -m vinyl_sorter --format json
+
 # See all options
 python -m vinyl_sorter --help
 ```
+
+### API Mode (serve over HTTP)
+
+VinylSorter can run as a REST API, serving your sorted collection as JSON with cover art URLs — designed as the backend for a mobile or web app.
+
+```bash
+# Run the pipeline, then start the API server
+python -m vinyl_sorter --serve
+
+# Specify a port (default: 8000)
+python -m vinyl_sorter --serve --port 3000
+
+# Or run standalone with uvicorn (lazy-loads on first request)
+export DISCOGS_TOKEN=YOUR_TOKEN
+uvicorn vinyl_sorter.api:app --host 0.0.0.0 --port 8000
+```
+
+Once running, visit `http://localhost:8000/docs` for interactive Swagger documentation.
+
+#### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Service status, version, and collection load state |
+| `GET` | `/collection` | Full sorted collection as JSON (includes cover art URLs) |
+| `GET` | `/collection/{discogs_id}` | Single record by Discogs release ID |
+| `GET` | `/collection/stats` | Aggregate stats: totals, unique artists, year range |
+| `POST` | `/collection/refresh` | Re-run the Discogs pipeline and reload the collection |
+
+Each record in the API response includes `thumb_url` (150px) and `cover_image_url` (full-size) for album art.
 
 ### CLI Options
 
@@ -27,7 +62,10 @@ python -m vinyl_sorter --help
 | `--user-agent` | `VinylSorter/2.0` | User-Agent for Discogs API |
 | `--folder` | `0` (all) | Discogs collection folder index |
 | `--output`, `-o` | `sorted_vinyl_collection.csv` | Output file path |
-| `--delimiter` | `,` | Output field delimiter |
+| `--format` | `csv` | Output format: `csv` or `json` |
+| `--delimiter` | `,` | Output field delimiter (CSV only) |
+| `--serve` | off | Start the API server after sorting |
+| `--port` | `8000` | API server port (used with `--serve`) |
 | `--log-file` | `vinyl_sorter.log` | Log file path |
 | `--log-level` | `INFO` | Logging level (DEBUG/INFO/WARNING/ERROR) |
 | `--alias-file` | None | JSON file for artist sort-name overrides |
@@ -118,15 +156,16 @@ I think vinyl should be physically sorted by artist, and within artist by date. 
 vinyl_sorter/           # Main Python package
   __init__.py           # Package metadata
   __main__.py           # Entry point (python -m vinyl_sorter)
+  api.py                # FastAPI REST service
   cli.py                # Command-line argument parsing
   config.py             # Configuration from args/env vars
   constants.py          # Enums and constants
   discogs_api.py        # Discogs API — single session, rate-limited
-  models.py             # VinylRecord data model
+  models.py             # VinylRecord data model (includes cover art URLs)
   loader.py             # Load collection from Discogs
   parser.py             # Parse sort_artist and sort_year
   sorter.py             # Sort the collection
-  exporter.py           # Export to CSV
+  exporter.py           # Export to CSV or JSON
   persistence.py        # Write sort data back to Discogs custom fields
 docs/                   # Design documents and research
 archive/                # Old exploration scripts (preserved for reference)

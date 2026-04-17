@@ -31,6 +31,13 @@ class Config:
     # Artist alias file (JSON mapping artist name → sort alias)
     alias_file: Optional[str] = None
 
+    # Output format
+    output_format: str = "csv"
+
+    # API server
+    serve: bool = False
+    port: int = 8000
+
     # Persistence options
     force_reparse: bool = False
     no_write_back: bool = False
@@ -38,6 +45,11 @@ class Config:
     field_sort_year: str = "Sort Year"
     field_sort_month: str = "Sort Month"
     field_is_compilation: str = "Is Compilation"
+
+    # Local cache options
+    refresh: bool = False
+    cache_file: str = ".vinyl_sorter_cache.json"
+    no_cache: bool = False
 
     @classmethod
     def from_args(cls, args) -> "Config":
@@ -57,10 +69,16 @@ class Config:
             log_file=args.log_file,
             log_level=args.log_level.upper(),
             alias_file=args.alias_file,
+            output_format=getattr(args, "output_format", "csv"),
+            serve=getattr(args, "serve", False),
+            port=getattr(args, "port", 8000),
             force_reparse=args.force_reparse,
             no_write_back=args.no_write_back,
             field_sort_artist=args.field_sort_artist,
             field_sort_year=args.field_sort_year,
             field_sort_month=args.field_sort_month,
             field_is_compilation=args.field_is_compilation,
+            refresh=getattr(args, "refresh", False),
+            cache_file=getattr(args, "cache_file", ".vinyl_sorter_cache.json"),
+            no_cache=getattr(args, "no_cache", False),
         )

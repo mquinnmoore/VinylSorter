@@ -1,0 +1,310 @@
+/* ============================================================
+   VinylSorter — Cover Flow Carousel
+   ============================================================ */
+
+/* --- Cover Flow Container ---------------------------------- */
+.coverflow-container {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 140px);
+    padding: 2rem 0 3rem;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+}
+
+.coverflow-container.active {
+    display: flex;
+}
+
+/* --- Stage (perspective wrapper) --------------------------- */
+.coverflow-stage {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    height: 500px;
+    perspective: 900px;
+    perspective-origin: 50% 40%;
+    overflow: visible;
+}
+
+/* --- Track (holds all album items) ------------------------- */
+.coverflow-track {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 0;
+    height: 100%;
+    transform-style: preserve-3d;
+}
+
+/* --- Individual album item --------------------------------- */
+.coverflow-item {
+    position: absolute;
+    width: 385px;
+    height: 385px;
+    top: 20px;
+    left: -192.5px; /* center the item (half of width) */
+    cursor: pointer;
+    transition: transform 0.38s ease, opacity 0.38s ease, z-index 0s;
+    transform-style: preserve-3d;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+}
+
+.coverflow-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+    display: block;
+    pointer-events: none;
+}
+
+/* --- Placeholder (no cover art) ---------------------------- */
+.coverflow-item .coverflow-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-elevated);
+    border-radius: 4px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+}
+
+.coverflow-placeholder .vinyl-icon {
+    font-size: 4rem;
+    opacity: 0.4;
+    margin-bottom: 0.5rem;
+}
+
+.coverflow-placeholder .placeholder-title {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 0 1rem;
+    line-height: 1.3;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+/* --- Reflection -------------------------------------------- */
+.coverflow-item::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        to bottom,
+        rgba(26, 26, 31, 0.3) 0%,
+        rgba(26, 26, 31, 0.85) 40%,
+        rgba(26, 26, 31, 1) 100%
+    );
+    transform: scaleY(-1) translateY(100%);
+    pointer-events: none;
+    border-radius: 4px;
+    opacity: 0.5;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 50%);
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 50%);
+}
+
+/* Use box-reflect where supported (WebKit) for real reflection */
+@supports (-webkit-box-reflect: below) {
+    .coverflow-item {
+        -webkit-box-reflect: below 2px
+            -webkit-linear-gradient(
+                bottom,
+                rgba(255, 255, 255, 0.25) 0%,
+                rgba(255, 255, 255, 0.05) 30%,
+                transparent 50%
+            );
+    }
+
+    .coverflow-item::after {
+        display: none;
+    }
+}
+
+/* --- Center album glow ------------------------------------- */
+.coverflow-item.cf-center img,
+.coverflow-item.cf-center .coverflow-placeholder {
+    box-shadow: 0 8px 50px rgba(0, 0, 0, 0.7),
+                0 0 30px var(--accent-glow);
+}
+
+/* --- Info panel below carousel ----------------------------- */
+.coverflow-info {
+    text-align: center;
+    margin-top: 2rem;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.coverflow-info .cf-title {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+.coverflow-info .cf-artist {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+}
+
+.coverflow-info .cf-year {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.coverflow-info .cf-position {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
+}
+
+.coverflow-info .cf-letter-indicator {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: var(--bg-elevated);
+    padding: 0.15rem 0.6rem;
+    border-radius: 100px;
+    margin-top: 0.35rem;
+}
+
+/* --- Empty state ------------------------------------------- */
+.coverflow-empty {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--text-muted);
+}
+
+.coverflow-empty .icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+/* --- Nav arrows -------------------------------------------- */
+.cf-nav-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 200;
+    background: rgba(255, 255, 255, 0.12);
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 2rem;
+    line-height: 1;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.cf-nav-arrow:hover {
+    background: rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: #fff;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+.cf-nav-arrow:active {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-50%) scale(0.95);
+}
+
+.cf-nav-left {
+    left: 16px;
+}
+
+.cf-nav-right {
+    right: 16px;
+}
+
+/* --- Navigation hint --------------------------------------- */
+.coverflow-nav-hint {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 1rem;
+    opacity: 0.5;
+    transition: opacity 0.5s ease;
+}
+
+.coverflow-nav-hint.hidden {
+    opacity: 0;
+}
+
+/* --- Responsive -------------------------------------------- */
+@media (max-width: 768px) {
+    .coverflow-stage {
+        height: 320px;
+    }
+
+    .coverflow-item {
+        width: 240px;
+        height: 240px;
+        top: 20px;
+        left: -120px;
+    }
+
+    .cf-nav-arrow {
+        width: 44px;
+        height: 44px;
+        font-size: 1.6rem;
+    }
+
+    .coverflow-info .cf-title {
+        font-size: 1.15rem;
+    }
+
+    .coverflow-info .cf-artist {
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .coverflow-stage {
+        height: 250px;
+    }
+
+    .coverflow-item {
+        width: 180px;
+        height: 180px;
+        top: 15px;
+        left: -90px;
+    }
+
+    .coverflow-info {
+        margin-top: 1.5rem;
+    }
+
+    .coverflow-info .cf-title {
+        font-size: 1rem;
+    }
+}

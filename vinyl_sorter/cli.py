@@ -58,6 +58,13 @@ def parse_args(argv=None) -> argparse.Namespace:
         default=",",
         help="Output field delimiter (default: comma)",
     )
+    output.add_argument(
+        "--format",
+        choices=["csv", "json"],
+        default="csv",
+        dest="output_format",
+        help="Output format (default: csv)",
+    )
 
     # Logging
     log = parser.add_argument_group("Logging")
@@ -114,6 +121,41 @@ def parse_args(argv=None) -> argparse.Namespace:
         "--field-is-compilation",
         default="Is Compilation",
         help="Name of the Discogs custom field for compilation flag (default: 'Is Compilation')",
+    )
+
+    # API server
+    server = parser.add_argument_group("API server")
+    server.add_argument(
+        "--serve",
+        action="store_true",
+        default=False,
+        help="Start the FastAPI server instead of exporting to file",
+    )
+    server.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port for the API server (default: 8000)",
+    )
+
+    # Local cache
+    cache = parser.add_argument_group("Local cache")
+    cache.add_argument(
+        "--refresh",
+        action="store_true",
+        default=False,
+        help="Force full reload from Discogs, ignoring any local cache",
+    )
+    cache.add_argument(
+        "--cache-file",
+        default=".vinyl_sorter_cache.json",
+        help="Path to the local cache file (default: .vinyl_sorter_cache.json)",
+    )
+    cache.add_argument(
+        "--no-cache",
+        action="store_true",
+        default=False,
+        help="Disable local caching entirely (original behavior)",
     )
 
     return parser.parse_args(argv)
