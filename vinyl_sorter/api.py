@@ -306,24 +306,6 @@ def create_app(
         )
 
     @app.get(
-        "/collection/{discogs_id}",
-        response_model=RecordResponse,
-        tags=["collection"],
-    )
-    def get_record(discogs_id: int):
-        """Return a single record by its Discogs release ID."""
-        records = _ensure_loaded()
-
-        for record in records:
-            if record.discogs_id == discogs_id:
-                return RecordResponse(**record_to_dict(record))
-
-        raise HTTPException(
-            status_code=404,
-            detail=f"Record with discogs_id {discogs_id} not found in collection.",
-        )
-
-    @app.get(
         "/collection",
         response_model=List[RecordResponse],
         tags=["collection"],
@@ -409,6 +391,27 @@ def create_app(
             cache_file=meta.cache_file,
             discogs_count=discogs_count,
             is_current=is_current,
+        )
+
+    # NOTE: This parameterized route must be registered LAST among /collection/*
+    # routes so that literal paths like /collection/stats and
+    # /collection/cache-status are matched first.
+    @app.get(
+        "/collection/{discogs_id}",
+        response_model=RecordResponse,
+        tags=["collection"],
+    )
+    def get_record(discogs_id: int):
+        """Return a single record by its Discogs release ID."""
+        records = _ensure_loaded()
+
+        for record in records:
+            if record.discogs_id == discogs_id:
+                return RecordResponse(**record_to_dict(record))
+
+        raise HTTPException(
+            status_code=404,
+            detail=f"Record with discogs_id {discogs_id} not found in collection.",
         )
 
     return app
