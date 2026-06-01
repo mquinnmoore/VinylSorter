@@ -133,7 +133,16 @@ var CoverFlow = (function () {
             '<div class="cf-artist"></div>' +
             '<div class="cf-year"></div>' +
             '<div class="cf-position"></div>' +
-            '<div class="cf-letter-indicator"></div>';
+            '<div class="cf-letter-indicator"></div>' +
+            '<a class="cf-discogs-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="View on Discogs">' +
+                '<svg class="cf-discogs-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+                    '<path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 0 1 6.32 12.9l-2.6-3.6a4 4 0 0 0-1.42-5.3l1.06-1.7A8 8 0 0 1 12 4Zm-6.32 3.1 2.6 3.6a4 4 0 0 0 1.42 5.3l-1.06 1.7A8 8 0 0 1 5.68 7.1ZM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/>' +
+                '</svg>' +
+                '<span>View on Discogs</span>' +
+                '<svg class="cf-discogs-external" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+                    '<path fill="currentColor" d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3ZM5 5h6v2H7v10h10v-4h2v6H5V5Z"/>' +
+                '</svg>' +
+            '</a>';
         return info;
     }
 
@@ -249,6 +258,7 @@ var CoverFlow = (function () {
         const yearEl = _infoPanel.querySelector('.cf-year');
         const posEl = _infoPanel.querySelector('.cf-position');
         const letterEl = _infoPanel.querySelector('.cf-letter-indicator');
+        const discogsLinkEl = _infoPanel.querySelector('.cf-discogs-link');
 
         titleEl.textContent = record.release_title;
         artistEl.textContent = record.release_artist;
@@ -258,6 +268,16 @@ var CoverFlow = (function () {
         const letter = getFirstLetter(record.sort_artist);
         const isComp = record.is_compilation;
         letterEl.textContent = isComp ? 'Compilations' : ('Section: ' + letter);
+
+        // Discogs deep link
+        if (record.discogs_id && record.discogs_id > 0) {
+            discogsLinkEl.href = 'https://www.discogs.com/release/' + record.discogs_id;
+            discogsLinkEl.style.display = '';
+            discogsLinkEl.removeAttribute('aria-disabled');
+        } else {
+            discogsLinkEl.href = '#';
+            discogsLinkEl.setAttribute('aria-disabled', 'true');
+        }
     }
 
     // --- Image Preloading ---
