@@ -30,6 +30,7 @@
     const modalYear = document.getElementById('modal-year');
     const modalSortDetails = document.getElementById('modal-sort-details');
     const modalBadges = document.getElementById('modal-badges');
+    const modalDiscogsLink = document.getElementById('modal-discogs-link');
 
     // ---- View Toggle ----
 
@@ -322,6 +323,15 @@
             badge.className = 'badge badge-compilation';
             badge.textContent = 'Compilation';
             modalBadges.appendChild(badge);
+        }
+
+        // Discogs deep link
+        if (record.discogs_id && record.discogs_id > 0) {
+            modalDiscogsLink.href = 'https://www.discogs.com/release/' + record.discogs_id;
+            modalDiscogsLink.removeAttribute('aria-disabled');
+        } else {
+            modalDiscogsLink.href = '#';
+            modalDiscogsLink.setAttribute('aria-disabled', 'true');
         }
 
         overlay.classList.add('active');
