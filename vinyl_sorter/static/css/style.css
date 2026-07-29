@@ -131,13 +131,23 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
+    gap: 0.25rem;
+    width: auto;
     height: 28px;
-    padding: 0;
+    padding: 0 0.6rem;
 }
 
-.sort-direction-btn svg {
+.sort-dir-icon {
     display: block;
+    color: var(--text-muted);
+    opacity: 0.7;
+    transition: color var(--transition), opacity var(--transition);
+}
+
+.sort-direction-btn[data-direction="asc"] .sort-dir-asc,
+.sort-direction-btn[data-direction="desc"] .sort-dir-desc {
+    color: var(--text-primary);
+    opacity: 1.0;
 }
 
 .sort-direction-btn:disabled,

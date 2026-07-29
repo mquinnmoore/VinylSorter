@@ -112,17 +112,12 @@
         var disabled = _currentSort === 'original';
         btnSortDirection.disabled = disabled;
         btnSortDirection.classList.toggle('disabled', disabled);
-        btnSortDirection.innerHTML = directionIcon(_currentDirection);
+        // Static SVGs live in the markup — light up the active one via a data-attribute
+        // instead of recreating DOM on every toggle.
+        btnSortDirection.dataset.direction = _currentDirection;
         var directionLabel = _currentDirection === 'asc' ? 'Sort ascending' : 'Sort descending';
         btnSortDirection.setAttribute('aria-label', directionLabel);
         btnSortDirection.setAttribute('title', directionLabel);
-    }
-
-    function directionIcon(direction) {
-        if (direction === 'desc') {
-            return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M11 4h10"/><path d="M11 8h7"/><path d="M11 12h4"/></svg>';
-        }
-        return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/><path d="M11 12h4"/><path d="M11 16h7"/><path d="M11 20h10"/></svg>';
     }
 
     function applySort(records) {
