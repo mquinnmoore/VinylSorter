@@ -26,6 +26,17 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CACHE_FILE = ".vinyl_sorter_cache.json"
 
+# Bump this any time a record field is added, removed, or renamed.  Older
+# cache files that lack this version key (or carry a lower version) are
+# treated as stale and discarded by ``load_cache`` / ``get_cache_metadata``,
+# which forces the pipeline to re-run and repopulate the cache with the
+# current schema.
+#
+# History:
+#   1 — original schema (pre-date_added)
+#   2 — adds ``date_added`` to every record (feat/sort-pill)
+CACHE_SCHEMA_VERSION = 2
+
 
 # ---------------------------------------------------------------------------
 # Serialization helpers
@@ -198,6 +209,18 @@ def get_cache_metadata(cache_file: str = DEFAULT_CACHE_FILE) -> Optional[CacheMe
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
+        # Schema-version check: a missing or older version means the cache
+        # was written by a build that doesn't know about a field we now need
+        # (e.g. date_added).  Treat it as stale so the pipeline re-runs.
+        cache_version = data.get("version", 1)
+        if cache_version < CACHE_SCHEMA_VERSION:
+            logger.info(
+                "Legacy cache detected at '%s' (version=%s, expected=%s); "
+                "discarding so the pipeline can rebuild with the current schema.",
+                cache_file, cache_version, CACHE_SCHEMA_VERSION,
+            )
+            return None
+
         cached_at = datetime.fromisoformat(data["cached_at"])
         record_count = data["record_count"]
 
@@ -237,6 +260,18 @@ def load_cache(cache_file: str = DEFAULT_CACHE_FILE) -> Optional[List[VinylRecor
             logger.warning("Cache file '%s' has unexpected structure.", cache_file)
             return None
 
+        # Schema-version check: a missing or older version means the cache
+        # was written by a build that doesn't know about a field we now need
+        # (e.g. date_added).  Treat it as stale so the pipeline re-runs.
+        cache_version = data.get("version", 1)
+        if cache_version < CACHE_SCHEMA_VERSION:
+            logger.info(
+                "Legacy cache detected at '%s' (version=%s, expected=%s); "
+                "discarding so the pipeline can rebuild with the current schema.",
+                cache_file, cache_version, CACHE_SCHEMA_VERSION,
+            )
+            return None
+
         raw_records = data["records"]
         if not isinstance(raw_records, list):
             logger.warning("Cache file '%s': 'records' is not a list.", cache_file)
@@ -268,6 +303,7 @@ def save_cache(
         cache_file: Path to the cache file.
     """
     data = {
+        "version": CACHE_SCHEMA_VERSION,
         "cached_at": datetime.now(timezone.utc).isoformat(),
         "record_count": len(records),
         "records": [_record_to_cache_dict(r) for r in records],
