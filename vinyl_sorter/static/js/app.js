@@ -22,11 +22,14 @@
     const btnSortOriginal = document.getElementById('btn-sort-original');
     const btnSortYear = document.getElementById('btn-sort-year');
     const btnSortAdded = document.getElementById('btn-sort-added');
+    const sortDirection = document.getElementById('sort-direction');
+    const btnSortDirection = document.getElementById('btn-sort-direction');
 
     // Shared state
     let _allRecords = [];    // flat sorted array from API (canonical order from server)
     let _currentView = 'grid';
     let _currentSort = 'original';
+    let _currentDirection = 'asc';
     let _coverFlowReady = false;
 
     // Modal fields
@@ -72,13 +75,24 @@
 
     function initSortToggle() {
         var saved = localStorage.getItem('vinylsort-sort');
+        var savedDirection = localStorage.getItem('vinylsort-direction');
         if (saved === 'original' || saved === 'year' || saved === 'added') {
             _currentSort = saved;
+        }
+        if (savedDirection === 'asc' || savedDirection === 'desc') {
+            _currentDirection = savedDirection;
         }
 
         btnSortOriginal.addEventListener('click', function () { switchSort('original'); });
         btnSortYear.addEventListener('click', function () { switchSort('year'); });
         btnSortAdded.addEventListener('click', function () { switchSort('added'); });
+        btnSortDirection.addEventListener('click', function () {
+            if (_currentSort === 'original' || btnSortDirection.disabled) return;
+            _currentDirection = _currentDirection === 'asc' ? 'desc' : 'asc';
+            localStorage.setItem('vinylsort-direction', _currentDirection);
+            updateSortToggleUI();
+            rerender();
+        });
 
         updateSortToggleUI();
     }
@@ -95,6 +109,20 @@
         btnSortOriginal.classList.toggle('active', _currentSort === 'original');
         btnSortYear.classList.toggle('active', _currentSort === 'year');
         btnSortAdded.classList.toggle('active', _currentSort === 'added');
+        var disabled = _currentSort === 'original';
+        btnSortDirection.disabled = disabled;
+        btnSortDirection.classList.toggle('disabled', disabled);
+        btnSortDirection.innerHTML = directionIcon(_currentDirection);
+        var directionLabel = _currentDirection === 'asc' ? 'Sort ascending' : 'Sort descending';
+        btnSortDirection.setAttribute('aria-label', directionLabel);
+        btnSortDirection.setAttribute('title', directionLabel);
+    }
+
+    function directionIcon(direction) {
+        if (direction === 'desc') {
+            return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M11 4h10"/><path d="M11 8h7"/><path d="M11 12h4"/></svg>';
+        }
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/><path d="M11 12h4"/><path d="M11 16h7"/><path d="M11 20h10"/></svg>';
     }
 
     function applySort(records) {
@@ -102,14 +130,16 @@
         switch (_currentSort) {
             case 'year':
                 return arr.sort(function (a, b) {
-                    if (a.sort_year !== b.sort_year) return a.sort_year - b.sort_year;
+                    var result = a.sort_year - b.sort_year;
+                    if (result !== 0) return result * (_currentDirection === 'asc' ? 1 : -1);
                     return a.sort_sequence - b.sort_sequence;
                 });
             case 'added':
                 return arr.sort(function (a, b) {
                     var ta = a.date_added ? Date.parse(a.date_added) : 0;
                     var tb = b.date_added ? Date.parse(b.date_added) : 0;
-                    if (ta !== tb) return tb - ta;  // newest first
+                    var result = ta - tb;
+                    if (result !== 0) return result * (_currentDirection === 'asc' ? 1 : -1);
                     return a.sort_sequence - b.sort_sequence;
                 });
             case 'original':
@@ -218,6 +248,7 @@
                 renderEmpty();
                 viewToggle.style.display = 'none'; // hide toggle for empty collections
                 sortToggle.style.display = 'none';
+                sortDirection.style.display = 'none';
             } else {
                 renderCollection(applySort(_allRecords));
                 // Apply saved view preference now that data is loaded
@@ -233,6 +264,7 @@
                 </div>`;
             viewToggle.style.display = 'none';
             sortToggle.style.display = 'none';
+            sortDirection.style.display = 'none';
         }
     }
 
@@ -307,7 +339,7 @@
      * Group records by a key function. Records whose key is null/undefined land
      * in a final bucket labeled `unknownLabel`. Because records arrive pre-sorted
      * by applySort(), rendering in iteration order retains the desired section
-     * ordering (year ascending, added descending).
+     * ordering for the current direction.
      */
     function bucketBy(records, keyFn, unknownLabel) {
         const order = [];

@@ -127,6 +127,31 @@ body {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
+.sort-direction-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 28px;
+    padding: 0;
+}
+
+.sort-direction-btn svg {
+    display: block;
+}
+
+.sort-direction-btn:disabled,
+.sort-direction-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.sort-direction-btn:disabled:hover,
+.sort-direction-btn.disabled:hover {
+    color: var(--text-muted);
+    background: transparent;
+}
+
 /* --- Loading spinner --------------------------------------- */
 .loading {
     display: flex;
