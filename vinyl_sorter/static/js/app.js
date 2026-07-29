@@ -17,9 +17,16 @@
     const btnGrid = document.getElementById('btn-grid');
     const btnFlow = document.getElementById('btn-flow');
 
+    // Sort toggle elements
+    const sortToggle = document.getElementById('sort-toggle');
+    const btnSortOriginal = document.getElementById('btn-sort-original');
+    const btnSortYear = document.getElementById('btn-sort-year');
+    const btnSortAdded = document.getElementById('btn-sort-added');
+
     // Shared state
-    let _allRecords = [];    // flat sorted array from API
+    let _allRecords = [];    // flat sorted array from API (canonical order from server)
     let _currentView = 'grid';
+    let _currentSort = 'original';
     let _coverFlowReady = false;
 
     // Modal fields
@@ -61,6 +68,73 @@
         btnFlow.classList.toggle('active', _currentView === 'flow');
     }
 
+    // ---- Sort Toggle ----
+
+    function initSortToggle() {
+        var saved = localStorage.getItem('vinylsort-sort');
+        if (saved === 'original' || saved === 'year' || saved === 'added') {
+            _currentSort = saved;
+        }
+
+        btnSortOriginal.addEventListener('click', function () { switchSort('original'); });
+        btnSortYear.addEventListener('click', function () { switchSort('year'); });
+        btnSortAdded.addEventListener('click', function () { switchSort('added'); });
+
+        updateSortToggleUI();
+    }
+
+    function switchSort(sort) {
+        if (sort === _currentSort) return;
+        _currentSort = sort;
+        localStorage.setItem('vinylsort-sort', sort);
+        updateSortToggleUI();
+        rerender();
+    }
+
+    function updateSortToggleUI() {
+        btnSortOriginal.classList.toggle('active', _currentSort === 'original');
+        btnSortYear.classList.toggle('active', _currentSort === 'year');
+        btnSortAdded.classList.toggle('active', _currentSort === 'added');
+    }
+
+    function applySort(records) {
+        var arr = records.slice();  // never mutate _allRecords
+        switch (_currentSort) {
+            case 'year':
+                return arr.sort(function (a, b) {
+                    if (a.sort_year !== b.sort_year) return a.sort_year - b.sort_year;
+                    return a.sort_sequence - b.sort_sequence;
+                });
+            case 'added':
+                return arr.sort(function (a, b) {
+                    var ta = a.date_added ? Date.parse(a.date_added) : 0;
+                    var tb = b.date_added ? Date.parse(b.date_added) : 0;
+                    if (ta !== tb) return tb - ta;  // newest first
+                    return a.sort_sequence - b.sort_sequence;
+                });
+            case 'original':
+            default:
+                return arr;
+        }
+    }
+
+    /** Re-render the visible collection from _allRecords with the current sort applied. */
+    function rerender() {
+        if (_allRecords.length === 0) return;
+        var sorted = applySort(_allRecords);
+        if (_currentView === 'flow') {
+            // Re-init CoverFlow with the new ordering so the carousel reflects it.
+            if (typeof CoverFlow !== 'undefined') {
+                _coverFlowReady = false;
+                CoverFlow.destroy();
+                CoverFlow.init(cfContainer, sorted, { onOpenModal: openModal });
+                _coverFlowReady = true;
+            }
+        } else {
+            renderCollection(sorted);
+        }
+    }
+
     function applyView() {
         if (_currentView === 'grid') {
             container.style.display = '';
@@ -76,7 +150,7 @@
 
             // Initialize CoverFlow if not yet done
             if (!_coverFlowReady && _allRecords.length > 0) {
-                CoverFlow.init(cfContainer, _allRecords, {
+                CoverFlow.init(cfContainer, applySort(_allRecords), {
                     onOpenModal: openModal,
                 });
                 _coverFlowReady = true;
@@ -122,6 +196,7 @@
 
     async function init() {
         initViewToggle();
+        initSortToggle();
 
         try {
             const [collectionRes, statsRes] = await Promise.all([
@@ -142,8 +217,9 @@
             if (records.length === 0) {
                 renderEmpty();
                 viewToggle.style.display = 'none'; // hide toggle for empty collections
+                sortToggle.style.display = 'none';
             } else {
-                renderCollection(records);
+                renderCollection(applySort(_allRecords));
                 // Apply saved view preference now that data is loaded
                 applyView();
             }
@@ -156,6 +232,7 @@
                     <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-muted);">${escapeHtml(err.message)}</p>
                 </div>`;
             viewToggle.style.display = 'none';
+            sortToggle.style.display = 'none';
         }
     }
 

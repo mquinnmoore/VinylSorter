@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Tuple
 
 from .constants import (
@@ -72,6 +73,10 @@ class VinylRecord:
     # Cover art URLs (from Discogs release object)
     cover_image_url: str = ""
     thumb_url: str = ""
+
+    # When this release was added to the Discogs collection (UTC).
+    # None when not available (e.g. legacy cache, non-Discogs sources).
+    date_added: Optional[datetime] = None
 
     # Import order tracking
     import_number: int = field(default=-1, repr=False)
