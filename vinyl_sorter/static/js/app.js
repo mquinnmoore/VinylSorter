@@ -257,37 +257,105 @@
     function renderCollection(records) {
         container.innerHTML = '';
 
-        // Separate compilations from non-compilations
-        const regular = records.filter(r => !r.is_compilation);
-        const compilations = records.filter(r => r.is_compilation);
+        // Divider strategy depends on the active sort. For "original" we keep the
+        // legacy first-letter-of-sort_artist grouping plus a trailing Compilations
+        // section. For "year" / "added" we group by the sort key itself, treat
+        // compilations like any other record, and bucket missing-key records into
+        // a final "Unknown" section. Within each section, records stay in the
+        // order applySort() produced (sort tiebreaker handles intra-section order).
+        const groups = computeSections(records);
 
-        // Group regular records by first letter of sort_artist
+        for (const group of groups) {
+            const section = createSection(group.label);
+            const grid = section.querySelector('.album-grid');
+            for (const record of group.records) {
+                grid.appendChild(createCard(record));
+            }
+            container.appendChild(section);
+        }
+    }
+
+    /**
+     * Slice the sorted records into divider sections. For "original" this is the
+     * legacy first-letter-of-sort_artist grouping with a trailing Compilations
+     * section. For "year" / "added" it's a bucket-by-key grouping (with an
+     * "Unknown" bucket at the bottom for missing keys) — compilations are not
+     * split out under those modes.
+     */
+    function computeSections(records) {
+        if (_currentSort === 'year') {
+            return bucketBy(records, function (r) {
+                return r.sort_year > 0 ? String(r.sort_year) : null;
+            }, 'Unknown');
+        }
+        if (_currentSort === 'added') {
+            return bucketBy(records, function (r) {
+                if (!r.date_added) return null;
+                var d = new Date(r.date_added);
+                if (isNaN(d.getTime())) return null;
+                var y = d.getUTCFullYear();
+                var m = String(d.getUTCMonth() + 1);
+                if (m.length < 2) m = '0' + m;
+                return y + '-' + m;
+            }, 'Unknown');
+        }
+        // original (default): letter-grouped + trailing Compilations
+        return originalSections(records);
+    }
+
+    /**
+     * Group records by a key function. Records whose key is null/undefined land
+     * in a final bucket labeled `unknownLabel`. Because records arrive pre-sorted
+     * by applySort(), rendering in iteration order retains the desired section
+     * ordering (year ascending, added descending).
+     */
+    function bucketBy(records, keyFn, unknownLabel) {
+        const order = [];
+        const map = {};
+        const unknowns = [];
+        for (const record of records) {
+            const key = keyFn(record);
+            if (key === null || key === undefined) {
+                unknowns.push(record);
+                continue;
+            }
+            if (!map[key]) {
+                map[key] = [];
+                order.push(key);
+            }
+            map[key].push(record);
+        }
+        const sections = [];
+        for (const key of order) {
+            sections.push({ label: key, records: map[key] });
+        }
+        if (unknowns.length > 0) {
+            sections.push({ label: unknownLabel, records: unknowns });
+        }
+        return sections;
+    }
+
+    /** Legacy first-letter-of-sort_artist grouping + trailing Compilations section. */
+    function originalSections(records) {
+        const regular = records.filter(function (r) { return !r.is_compilation; });
+        const compilations = records.filter(function (r) { return r.is_compilation; });
+
+        const sections = [];
         let currentLetter = null;
-        let currentSection = null;
-        let currentGrid = null;
-
+        let bucket = null;
         for (const record of regular) {
             const letter = getFirstLetter(record.sort_artist);
-
             if (letter !== currentLetter) {
                 currentLetter = letter;
-                currentSection = createSection(letter);
-                currentGrid = currentSection.querySelector('.album-grid');
-                container.appendChild(currentSection);
+                bucket = { label: letter, records: [] };
+                sections.push(bucket);
             }
-
-            currentGrid.appendChild(createCard(record));
+            bucket.records.push(record);
         }
-
-        // Compilations section at the end
         if (compilations.length > 0) {
-            const compSection = createSection('Compilations');
-            const compGrid = compSection.querySelector('.album-grid');
-            for (const record of compilations) {
-                compGrid.appendChild(createCard(record));
-            }
-            container.appendChild(compSection);
+            sections.push({ label: 'Compilations', records: compilations });
         }
+        return sections;
     }
 
     function getFirstLetter(sortArtist) {
