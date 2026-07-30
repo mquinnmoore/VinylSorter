@@ -26,6 +26,17 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CACHE_FILE = ".vinyl_sorter_cache.json"
 
+# Bump this any time a record field is added, removed, or renamed.  Older
+# cache files that lack this version key (or carry a lower version) are
+# treated as stale and discarded by ``load_cache`` / ``get_cache_metadata``,
+# which forces the pipeline to re-run and repopulate the cache with the
+# current schema.
+#
+# History:
+#   1 — original schema (pre-date_added)
+#   2 — adds ``date_added`` to every record (feat/sort-pill)
+CACHE_SCHEMA_VERSION = 2
+
 
 # ---------------------------------------------------------------------------
 # Serialization helpers
@@ -59,6 +70,7 @@ def _record_to_cache_dict(record: VinylRecord) -> Dict[str, Any]:
         "cover_image_url": record.cover_image_url,
         "thumb_url": record.thumb_url,
         "import_number": record.import_number,
+        "date_added": record.date_added.isoformat() if record.date_added else None,
     }
 
 
@@ -98,6 +110,20 @@ def _cache_dict_to_record(d: Dict[str, Any]) -> VinylRecord:
     record.cover_image_url = d.get("cover_image_url", "")
     record.thumb_url = d.get("thumb_url", "")
     record.import_number = d.get("import_number", -1)
+
+    # date_added is stored as an ISO 8601 string; legacy caches may lack it.
+    raw_date_added = d.get("date_added")
+    if raw_date_added:
+        try:
+            # fromisoformat handles "+00:00" style offsets produced by
+            # datetime.isoformat(); strip trailing 'Z' if present.
+            normalized = raw_date_added.replace("Z", "+00:00") if isinstance(raw_date_added, str) else raw_date_added
+            record.date_added = datetime.fromisoformat(normalized)
+        except (TypeError, ValueError):
+            logger.warning("Cache: invalid date_added '%s'; leaving as None", raw_date_added)
+            record.date_added = None
+    else:
+        record.date_added = None
 
     return record
 
@@ -183,6 +209,18 @@ def get_cache_metadata(cache_file: str = DEFAULT_CACHE_FILE) -> Optional[CacheMe
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
+        # Schema-version check: a missing or older version means the cache
+        # was written by a build that doesn't know about a field we now need
+        # (e.g. date_added).  Treat it as stale so the pipeline re-runs.
+        cache_version = data.get("version", 1)
+        if cache_version < CACHE_SCHEMA_VERSION:
+            logger.info(
+                "Legacy cache detected at '%s' (version=%s, expected=%s); "
+                "discarding so the pipeline can rebuild with the current schema.",
+                cache_file, cache_version, CACHE_SCHEMA_VERSION,
+            )
+            return None
+
         cached_at = datetime.fromisoformat(data["cached_at"])
         record_count = data["record_count"]
 
@@ -222,6 +260,18 @@ def load_cache(cache_file: str = DEFAULT_CACHE_FILE) -> Optional[List[VinylRecor
             logger.warning("Cache file '%s' has unexpected structure.", cache_file)
             return None
 
+        # Schema-version check: a missing or older version means the cache
+        # was written by a build that doesn't know about a field we now need
+        # (e.g. date_added).  Treat it as stale so the pipeline re-runs.
+        cache_version = data.get("version", 1)
+        if cache_version < CACHE_SCHEMA_VERSION:
+            logger.info(
+                "Legacy cache detected at '%s' (version=%s, expected=%s); "
+                "discarding so the pipeline can rebuild with the current schema.",
+                cache_file, cache_version, CACHE_SCHEMA_VERSION,
+            )
+            return None
+
         raw_records = data["records"]
         if not isinstance(raw_records, list):
             logger.warning("Cache file '%s': 'records' is not a list.", cache_file)
@@ -253,6 +303,7 @@ def save_cache(
         cache_file: Path to the cache file.
     """
     data = {
+        "version": CACHE_SCHEMA_VERSION,
         "cached_at": datetime.now(timezone.utc).isoformat(),
         "record_count": len(records),
         "records": [_record_to_cache_dict(r) for r in records],

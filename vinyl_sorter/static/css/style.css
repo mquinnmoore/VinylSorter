@@ -98,6 +98,76 @@ body {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
+/* --- Sort toggle (sibling pill to .view-toggle) --------------- */
+.sort-toggle {
+    display: inline-flex;
+    margin-top: 0.75rem;
+    margin-left: 0.5rem;
+    background: var(--bg-surface);
+    border-radius: 100px;
+    padding: 3px;
+    gap: 2px;
+}
+
+.sort-toggle-btn {
+    padding: 0.35rem 1.1rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: color var(--transition), background var(--transition);
+    letter-spacing: 0.01em;
+}
+
+.sort-toggle-btn:hover {
+    color: var(--text-secondary);
+}
+
+.sort-toggle-btn.active {
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.sort-direction-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    width: auto;
+    height: 28px;
+    padding: 0 0.6rem;
+}
+
+.sort-dir-icon {
+    display: block;
+    color: var(--text-muted);
+    opacity: 0.7;
+    transition: color var(--transition), opacity var(--transition);
+}
+
+.sort-direction-btn[data-direction="asc"] .sort-dir-asc,
+.sort-direction-btn[data-direction="desc"] .sort-dir-desc {
+    color: var(--text-primary);
+    opacity: 1.0;
+}
+
+.sort-direction-btn:disabled,
+.sort-direction-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.sort-direction-btn:disabled:hover,
+.sort-direction-btn.disabled:hover {
+    color: var(--text-muted);
+    background: transparent;
+}
+
 /* --- Loading spinner --------------------------------------- */
 .loading {
     display: flex;

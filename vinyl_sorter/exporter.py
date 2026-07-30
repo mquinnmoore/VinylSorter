@@ -79,6 +79,7 @@ def record_to_dict(record: VinylRecord) -> Dict[str, Any]:
         "instance_id": record.instance_id,
         "folder_id": record.folder_id,
         "import_number": record.import_number,
+        "date_added": record.date_added.isoformat() if record.date_added else None,
     }
 
 

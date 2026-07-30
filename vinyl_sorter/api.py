@@ -52,6 +52,10 @@ class RecordResponse(BaseModel):
     is_live: bool = Field(..., description="Whether this is a live recording")
     cover_image_url: str = Field("", description="Full-size cover art URL")
     thumb_url: str = Field("", description="150px thumbnail URL")
+    date_added: Optional[str] = Field(
+        None,
+        description="ISO 8601 UTC timestamp from Discogs (date the release was added to the collection)",
+    )
 
     model_config = {"json_schema_extra": {"example": {
         "discogs_id": 1234567,
@@ -66,6 +70,7 @@ class RecordResponse(BaseModel):
         "is_live": False,
         "cover_image_url": "https://img.discogs.com/...",
         "thumb_url": "https://img.discogs.com/.../150.jpg",
+        "date_added": "2024-03-15T18:22:11+00:00",
     }}}
 
 

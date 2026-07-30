@@ -98,6 +98,7 @@ def load_collection(
             persisted_is_compilation=persisted_compilation,
             cover_image_url=cover_image,
             thumb_url=thumb,
+            date_added=getattr(item, "date_added", None),
         )
 
         if persisted_artist:

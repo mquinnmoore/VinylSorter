@@ -17,9 +17,19 @@
     const btnGrid = document.getElementById('btn-grid');
     const btnFlow = document.getElementById('btn-flow');
 
+    // Sort toggle elements
+    const sortToggle = document.getElementById('sort-toggle');
+    const btnSortOriginal = document.getElementById('btn-sort-original');
+    const btnSortYear = document.getElementById('btn-sort-year');
+    const btnSortAdded = document.getElementById('btn-sort-added');
+    const sortDirection = document.getElementById('sort-direction');
+    const btnSortDirection = document.getElementById('btn-sort-direction');
+
     // Shared state
-    let _allRecords = [];    // flat sorted array from API
+    let _allRecords = [];    // flat sorted array from API (canonical order from server)
     let _currentView = 'grid';
+    let _currentSort = 'original';
+    let _currentDirection = 'asc';
     let _coverFlowReady = false;
 
     // Modal fields
@@ -61,6 +71,95 @@
         btnFlow.classList.toggle('active', _currentView === 'flow');
     }
 
+    // ---- Sort Toggle ----
+
+    function initSortToggle() {
+        var saved = localStorage.getItem('vinylsort-sort');
+        var savedDirection = localStorage.getItem('vinylsort-direction');
+        if (saved === 'original' || saved === 'year' || saved === 'added') {
+            _currentSort = saved;
+        }
+        if (savedDirection === 'asc' || savedDirection === 'desc') {
+            _currentDirection = savedDirection;
+        }
+
+        btnSortOriginal.addEventListener('click', function () { switchSort('original'); });
+        btnSortYear.addEventListener('click', function () { switchSort('year'); });
+        btnSortAdded.addEventListener('click', function () { switchSort('added'); });
+        btnSortDirection.addEventListener('click', function () {
+            if (_currentSort === 'original' || btnSortDirection.disabled) return;
+            _currentDirection = _currentDirection === 'asc' ? 'desc' : 'asc';
+            localStorage.setItem('vinylsort-direction', _currentDirection);
+            updateSortToggleUI();
+            rerender();
+        });
+
+        updateSortToggleUI();
+    }
+
+    function switchSort(sort) {
+        if (sort === _currentSort) return;
+        _currentSort = sort;
+        localStorage.setItem('vinylsort-sort', sort);
+        updateSortToggleUI();
+        rerender();
+    }
+
+    function updateSortToggleUI() {
+        btnSortOriginal.classList.toggle('active', _currentSort === 'original');
+        btnSortYear.classList.toggle('active', _currentSort === 'year');
+        btnSortAdded.classList.toggle('active', _currentSort === 'added');
+        var disabled = _currentSort === 'original';
+        btnSortDirection.disabled = disabled;
+        btnSortDirection.classList.toggle('disabled', disabled);
+        // Static SVGs live in the markup — light up the active one via a data-attribute
+        // instead of recreating DOM on every toggle.
+        btnSortDirection.dataset.direction = _currentDirection;
+        var directionLabel = _currentDirection === 'asc' ? 'Sort ascending' : 'Sort descending';
+        btnSortDirection.setAttribute('aria-label', directionLabel);
+        btnSortDirection.setAttribute('title', directionLabel);
+    }
+
+    function applySort(records) {
+        var arr = records.slice();  // never mutate _allRecords
+        switch (_currentSort) {
+            case 'year':
+                return arr.sort(function (a, b) {
+                    var result = a.sort_year - b.sort_year;
+                    if (result !== 0) return result * (_currentDirection === 'asc' ? 1 : -1);
+                    return a.sort_sequence - b.sort_sequence;
+                });
+            case 'added':
+                return arr.sort(function (a, b) {
+                    var ta = a.date_added ? Date.parse(a.date_added) : 0;
+                    var tb = b.date_added ? Date.parse(b.date_added) : 0;
+                    var result = ta - tb;
+                    if (result !== 0) return result * (_currentDirection === 'asc' ? 1 : -1);
+                    return a.sort_sequence - b.sort_sequence;
+                });
+            case 'original':
+            default:
+                return arr;
+        }
+    }
+
+    /** Re-render the visible collection from _allRecords with the current sort applied. */
+    function rerender() {
+        if (_allRecords.length === 0) return;
+        var sorted = applySort(_allRecords);
+        if (_currentView === 'flow') {
+            // Re-init CoverFlow with the new ordering so the carousel reflects it.
+            if (typeof CoverFlow !== 'undefined') {
+                _coverFlowReady = false;
+                CoverFlow.destroy();
+                CoverFlow.init(cfContainer, sorted, { onOpenModal: openModal });
+                _coverFlowReady = true;
+            }
+        } else {
+            renderCollection(sorted);
+        }
+    }
+
     function applyView() {
         if (_currentView === 'grid') {
             container.style.display = '';
@@ -76,7 +175,7 @@
 
             // Initialize CoverFlow if not yet done
             if (!_coverFlowReady && _allRecords.length > 0) {
-                CoverFlow.init(cfContainer, _allRecords, {
+                CoverFlow.init(cfContainer, applySort(_allRecords), {
                     onOpenModal: openModal,
                 });
                 _coverFlowReady = true;
@@ -122,6 +221,7 @@
 
     async function init() {
         initViewToggle();
+        initSortToggle();
 
         try {
             const [collectionRes, statsRes] = await Promise.all([
@@ -142,8 +242,10 @@
             if (records.length === 0) {
                 renderEmpty();
                 viewToggle.style.display = 'none'; // hide toggle for empty collections
+                sortToggle.style.display = 'none';
+                sortDirection.style.display = 'none';
             } else {
-                renderCollection(records);
+                renderCollection(applySort(_allRecords));
                 // Apply saved view preference now that data is loaded
                 applyView();
             }
@@ -156,6 +258,8 @@
                     <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-muted);">${escapeHtml(err.message)}</p>
                 </div>`;
             viewToggle.style.display = 'none';
+            sortToggle.style.display = 'none';
+            sortDirection.style.display = 'none';
         }
     }
 
@@ -180,37 +284,105 @@
     function renderCollection(records) {
         container.innerHTML = '';
 
-        // Separate compilations from non-compilations
-        const regular = records.filter(r => !r.is_compilation);
-        const compilations = records.filter(r => r.is_compilation);
+        // Divider strategy depends on the active sort. For "original" we keep the
+        // legacy first-letter-of-sort_artist grouping plus a trailing Compilations
+        // section. For "year" / "added" we group by the sort key itself, treat
+        // compilations like any other record, and bucket missing-key records into
+        // a final "Unknown" section. Within each section, records stay in the
+        // order applySort() produced (sort tiebreaker handles intra-section order).
+        const groups = computeSections(records);
 
-        // Group regular records by first letter of sort_artist
+        for (const group of groups) {
+            const section = createSection(group.label);
+            const grid = section.querySelector('.album-grid');
+            for (const record of group.records) {
+                grid.appendChild(createCard(record));
+            }
+            container.appendChild(section);
+        }
+    }
+
+    /**
+     * Slice the sorted records into divider sections. For "original" this is the
+     * legacy first-letter-of-sort_artist grouping with a trailing Compilations
+     * section. For "year" / "added" it's a bucket-by-key grouping (with an
+     * "Unknown" bucket at the bottom for missing keys) — compilations are not
+     * split out under those modes.
+     */
+    function computeSections(records) {
+        if (_currentSort === 'year') {
+            return bucketBy(records, function (r) {
+                return r.sort_year > 0 ? String(r.sort_year) : null;
+            }, 'Unknown');
+        }
+        if (_currentSort === 'added') {
+            return bucketBy(records, function (r) {
+                if (!r.date_added) return null;
+                var d = new Date(r.date_added);
+                if (isNaN(d.getTime())) return null;
+                var y = d.getUTCFullYear();
+                var m = String(d.getUTCMonth() + 1);
+                if (m.length < 2) m = '0' + m;
+                return y + '-' + m;
+            }, 'Unknown');
+        }
+        // original (default): letter-grouped + trailing Compilations
+        return originalSections(records);
+    }
+
+    /**
+     * Group records by a key function. Records whose key is null/undefined land
+     * in a final bucket labeled `unknownLabel`. Because records arrive pre-sorted
+     * by applySort(), rendering in iteration order retains the desired section
+     * ordering for the current direction.
+     */
+    function bucketBy(records, keyFn, unknownLabel) {
+        const order = [];
+        const map = {};
+        const unknowns = [];
+        for (const record of records) {
+            const key = keyFn(record);
+            if (key === null || key === undefined) {
+                unknowns.push(record);
+                continue;
+            }
+            if (!map[key]) {
+                map[key] = [];
+                order.push(key);
+            }
+            map[key].push(record);
+        }
+        const sections = [];
+        for (const key of order) {
+            sections.push({ label: key, records: map[key] });
+        }
+        if (unknowns.length > 0) {
+            sections.push({ label: unknownLabel, records: unknowns });
+        }
+        return sections;
+    }
+
+    /** Legacy first-letter-of-sort_artist grouping + trailing Compilations section. */
+    function originalSections(records) {
+        const regular = records.filter(function (r) { return !r.is_compilation; });
+        const compilations = records.filter(function (r) { return r.is_compilation; });
+
+        const sections = [];
         let currentLetter = null;
-        let currentSection = null;
-        let currentGrid = null;
-
+        let bucket = null;
         for (const record of regular) {
             const letter = getFirstLetter(record.sort_artist);
-
             if (letter !== currentLetter) {
                 currentLetter = letter;
-                currentSection = createSection(letter);
-                currentGrid = currentSection.querySelector('.album-grid');
-                container.appendChild(currentSection);
+                bucket = { label: letter, records: [] };
+                sections.push(bucket);
             }
-
-            currentGrid.appendChild(createCard(record));
+            bucket.records.push(record);
         }
-
-        // Compilations section at the end
         if (compilations.length > 0) {
-            const compSection = createSection('Compilations');
-            const compGrid = compSection.querySelector('.album-grid');
-            for (const record of compilations) {
-                compGrid.appendChild(createCard(record));
-            }
-            container.appendChild(compSection);
+            sections.push({ label: 'Compilations', records: compilations });
         }
+        return sections;
     }
 
     function getFirstLetter(sortArtist) {
