@@ -165,7 +165,7 @@
     color: var(--text-secondary);
 }
 
-.coverflow-info .cf-year {
+.coverflow-info .cf-origin-year {
     font-size: 0.9rem;
     color: var(--text-muted);
 }
