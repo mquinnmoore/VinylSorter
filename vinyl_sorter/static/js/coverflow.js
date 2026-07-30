@@ -131,7 +131,7 @@ var CoverFlow = (function () {
         info.innerHTML =
             '<div class="cf-title"></div>' +
             '<div class="cf-artist"></div>' +
-            '<div class="cf-year"></div>' +
+            '<div class="cf-origin-year"></div>' +
             '<div class="cf-position"></div>' +
             '<div class="cf-letter-indicator"></div>' +
             '<a class="cf-discogs-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="View on Discogs">' +
@@ -255,14 +255,18 @@ var CoverFlow = (function () {
         const record = _records[_currentIndex];
         const titleEl = _infoPanel.querySelector('.cf-title');
         const artistEl = _infoPanel.querySelector('.cf-artist');
-        const yearEl = _infoPanel.querySelector('.cf-year');
+        const originYearEl = _infoPanel.querySelector('.cf-origin-year');
         const posEl = _infoPanel.querySelector('.cf-position');
         const letterEl = _infoPanel.querySelector('.cf-letter-indicator');
         const discogsLinkEl = _infoPanel.querySelector('.cf-discogs-link');
 
         titleEl.textContent = record.release_title;
         artistEl.textContent = record.release_artist;
-        yearEl.textContent = record.release_year > 0 ? String(record.release_year) : 'Year unknown';
+        // Flow-mode year display: the user's Sort Year (the year they control
+        // via sorting), not the Discogs release year. Labeled as "Origin year".
+        originYearEl.textContent = record.sort_year > 0
+            ? 'Origin year: ' + record.sort_year
+            : 'Origin year: unknown';
         posEl.textContent = '#' + record.sort_sequence + ' of ' + _records.length;
 
         const letter = getFirstLetter(record.sort_artist);
