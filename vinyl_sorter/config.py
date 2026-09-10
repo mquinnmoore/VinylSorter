@@ -19,6 +19,7 @@ class Config:
 
     # Collection options
     folder_index: int = 0  # 0 = all items in Discogs
+    bins: Optional[int] = None  # 0/None = no binning; else insert Bin Break separators
 
     # Output options
     output_file: str = "sorted_vinyl_collection.csv"
@@ -64,6 +65,7 @@ class Config:
                 or os.environ.get("DISCOGS_USER_AGENT", "VinylSorter/2.0")
             ),
             folder_index=args.folder,
+            bins=getattr(args, "bins", None),
             output_file=args.output,
             delimiter=args.delimiter,
             log_file=args.log_file,

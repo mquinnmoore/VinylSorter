@@ -56,6 +56,13 @@ class RecordResponse(BaseModel):
         None,
         description="ISO 8601 UTC timestamp from Discogs (date the release was added to the collection)",
     )
+    is_bin_break: bool = Field(
+        False,
+        description=(
+            "True when this entry is a synthetic 'Bin Break' separator "
+            "inserted by the --bins CLI flag — not a real Discogs record."
+        ),
+    )
 
     model_config = {"json_schema_extra": {"example": {
         "discogs_id": 1234567,
@@ -71,6 +78,7 @@ class RecordResponse(BaseModel):
         "cover_image_url": "https://img.discogs.com/...",
         "thumb_url": "https://img.discogs.com/.../150.jpg",
         "date_added": "2024-03-15T18:22:11+00:00",
+        "is_bin_break": False,
     }}}
 
 

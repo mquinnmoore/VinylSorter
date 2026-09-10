@@ -45,6 +45,16 @@ def parse_args(argv=None) -> argparse.Namespace:
         default=0,
         help="Discogs collection folder index (default: 0 = all items)",
     )
+    collection.add_argument(
+        "--bins",
+        type=int,
+        default=None,
+        help=(
+            "Number of bins to distribute the sorted collection into "
+            "(inserts 'Bin Break' separators between bins). "
+            "Must be >= 2 and <= record count."
+        ),
+    )
 
     # Output options
     output = parser.add_argument_group("Output options")

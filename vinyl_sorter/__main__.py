@@ -12,6 +12,7 @@ from .loader import load_collection
 from .parser import load_aliases, parse_collection
 from .persistence import write_back_sort_data
 from .sorter import sort_collection
+from .binning import BinValidationError, insert_bin_breaks, validate_bins
 
 
 def _run_full_pipeline(
@@ -182,13 +183,26 @@ def main() -> None:
             save_cache(sorted_records, config.cache_file)
             print(f"Saved {len(sorted_records)} records to local cache.")
 
+    # ------------------------------------------------------------------
+    # Optional: insert Bin Break separators (--bins N)
+    # ------------------------------------------------------------------
+    output_records = sorted_records
+    if config.bins is not None:
+        try:
+            validate_bins(config.bins, len(sorted_records))
+        except BinValidationError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+        output_records = insert_bin_breaks(sorted_records, config.bins)
+        print(f"Inserted {config.bins - 1} bin break(s) into the sorted list.")
+
     # Serve mode: start the FastAPI server with the sorted collection
     if config.serve:
         print(f"Starting API server on port {config.port}…")
         from .api import create_app
         import uvicorn
 
-        app = create_app(sorted_records, config=config)
+        app = create_app(output_records, config=config)
         uvicorn.run(app, host="0.0.0.0", port=config.port)
         return  # uvicorn.run blocks; when it exits, we're done
 
@@ -197,14 +211,16 @@ def main() -> None:
         output_file = config.output_file
         if output_file.endswith(".csv"):
             output_file = output_file.rsplit(".", 1)[0] + ".json"
-        export_collection_json_file(sorted_records, output_file=output_file)
+        export_collection_json_file(output_records, output_file=output_file)
     else:
-        export_collection(sorted_records, output_file=config.output_file, delimiter=config.delimiter)
+        export_collection(output_records, output_file=config.output_file, delimiter=config.delimiter)
 
-    # Write back (unless --no-write-back) — only if pipeline ran
+    # Write back (unless --no-write-back) — only if pipeline ran.
+    # Bin break records are synthetic and must never be written to Discogs.
     if ran_pipeline and has_fields and not config.no_write_back:
         print("Writing sort data back to Discogs…")
-        write_count = write_back_sort_data(sorted_records, api, field_ids)
+        real_records = [r for r in sorted_records if not r.is_bin_break]
+        write_count = write_back_sort_data(real_records, api, field_ids)
         if write_count > 0:
             print(f"Updated {write_count} custom field values in Discogs.")
         else:
@@ -215,7 +231,8 @@ def main() -> None:
     output_path = config.output_file
     if config.output_format == "json" and output_path.endswith(".csv"):
         output_path = output_path.rsplit(".", 1)[0] + ".json"
-    print(f"Done! {len(sorted_records)} records sorted → {output_path}")
+    final_count = len(output_records)
+    print(f"Done! {final_count} records sorted → {output_path}")
 
 
 if __name__ == "__main__":

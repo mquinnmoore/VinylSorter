@@ -61,6 +61,7 @@ Each record in the API response includes `thumb_url` (150px) and `cover_image_ur
 | `--token` | `$DISCOGS_TOKEN` | Discogs personal access token |
 | `--user-agent` | `VinylSorter/2.0` | User-Agent for Discogs API |
 | `--folder` | `0` (all) | Discogs collection folder index |
+| `--bins` | unset | Partition the sorted list into N bins with `Bin Break` separators (CSV/JSON) |
 | `--output`, `-o` | `sorted_vinyl_collection.csv` | Output file path |
 | `--format` | `csv` | Output format: `csv` or `json` |
 | `--delimiter` | `,` | Output field delimiter (CSV only) |
@@ -121,6 +122,38 @@ Create a JSON file to override how artists are sorted:
 ```
 
 Then: `python -m vinyl_sorter --alias-file aliases.json`
+
+### Bin Breaks (`--bins`)
+
+Pass `--bins N` to partition the sorted collection into `N` evenly-sized
+sections and insert a synthetic `Bin Break` separator between each
+adjacent pair. Sizes differ by at most one record; extras are placed
+around the geometric center so the cover flow stays balanced
+left-to-right.
+
+```bash
+python -m vinyl_sorter --bins 3
+```
+
+Bin break rows are written to CSV/JSON just like real records, but:
+
+- **CSV:** the `Album` column is `Bin Break`; every other column is
+  blank (including `Sort #`, `Artist`, `Year`, etc.).
+- **JSON:** the record carries `is_bin_break: true`; other fields
+  serialize as blank/null-shaped.
+- **Cover flow UI:** a white card with a centered `gap-horizontal`
+  icon replaces the album art; the info panel shows `Bin Break` as
+  the title and leaves other fields empty. Other display modes
+  (grid, table, list, …) are untouched.
+
+Bin break records are synthetic — they are never written back to
+Discogs, and validation fails loudly for out-of-range values:
+
+- `--bins 0` or `--bins 1` → `Error: --bins must be at least 2 (got N).`
+- `--bins > record count` → `Error: --bins (N) cannot exceed number of records (M).`
+
+When `--bins` is omitted, behavior is identical to previous versions
+(backwards compatible).
 
 ## Algorithm
 

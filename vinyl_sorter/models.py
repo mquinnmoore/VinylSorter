@@ -81,6 +81,10 @@ class VinylRecord:
     # Import order tracking
     import_number: int = field(default=-1, repr=False)
 
+    # Synthetic "Bin Break" marker. When True, this row is a section
+    # separator inserted by the --bins flag — not a real Discogs record.
+    is_bin_break: bool = False
+
     # Class-level counter
     _import_counter: int = field(default=0, init=False, repr=False)
 
