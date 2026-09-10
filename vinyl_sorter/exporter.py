@@ -34,6 +34,23 @@ def export_collection(
         writer.writeheader()
 
         for record in records:
+            if record.is_bin_break:
+                # Bin Break rows: Album = "Bin Break", every other
+                # column blank — including Sort #, Sort Artist,
+                # Artist, Sort Year, Sort Month, Year, Live, Compilation.
+                writer.writerow({
+                    "Sort #": "",
+                    "Sort Artist": "",
+                    "Artist": "",
+                    "Album": "Bin Break",
+                    "Sort Year": "",
+                    "Sort Month": "",
+                    "Year": "",
+                    "Live": "",
+                    "Compilation": "",
+                })
+                continue
+
             writer.writerow({
                 "Sort #": record.sort_sequence,
                 "Sort Artist": record.sort_artist,
@@ -60,8 +77,36 @@ def record_to_dict(record: VinylRecord) -> Dict[str, Any]:
         record: A VinylRecord object.
 
     Returns:
-        Dictionary with all record fields.
+        Dictionary with all record fields. Bin-break records keep the
+        same key set (for schema stability) but serialize their
+        sentinel payload — ``release_title`` is ``"Bin Break"`` and
+        the rest are blank/null-shaped.
     """
+    if record.is_bin_break:
+        # Bin Break: keep the schema stable so consumers can rely on
+        # the key set, but emit a blank/null payload. release_title
+        # surfaces as the literal "Bin Break" string.
+        return {
+            "discogs_id": record.discogs_id,
+            "sort_sequence": record.sort_sequence,
+            "release_artist": record.release_artist,
+            "release_artist_id": record.release_artist_id,
+            "sort_artist": record.sort_artist,
+            "release_title": record.release_title,
+            "release_year": record.release_year,
+            "sort_year": record.sort_year,
+            "sort_month": record.sort_month,
+            "is_compilation": record.is_compilation,
+            "is_live": record.is_live,
+            "cover_image_url": record.cover_image_url,
+            "date_added": record.date_added.isoformat() if record.date_added else None,
+            "thumb_url": record.thumb_url,
+            "instance_id": record.instance_id,
+            "folder_id": record.folder_id,
+            "import_number": record.import_number,
+            "is_bin_break": True,
+        }
+
     return {
         "discogs_id": record.discogs_id,
         "sort_sequence": record.sort_sequence,
@@ -80,6 +125,7 @@ def record_to_dict(record: VinylRecord) -> Dict[str, Any]:
         "folder_id": record.folder_id,
         "import_number": record.import_number,
         "date_added": record.date_added.isoformat() if record.date_added else None,
+        "is_bin_break": False,
     }
 
 

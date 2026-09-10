@@ -87,6 +87,26 @@ var CoverFlow = (function () {
         el.className = 'coverflow-item';
         el.dataset.index = index;
 
+        if (record.is_bin_break) {
+            // Bin break — gap-horizontal icon on white background,
+            // sized to match the cover art slot exactly.
+            const wrap = document.createElement('div');
+            wrap.className = 'bin-break-icon';
+            const img = document.createElement('img');
+            img.src = '/static/img/gap-horizontal.svg';
+            img.alt = 'Bin Break';
+            img.loading = 'lazy';
+            wrap.appendChild(img);
+            el.appendChild(wrap);
+            el.classList.add('is-bin-break');
+            // Don't open the modal for a synthetic separator.
+            el.addEventListener('click', function () {
+                const idx = parseInt(this.dataset.index, 10);
+                if (idx !== _currentIndex) goTo(idx);
+            });
+            return el;
+        }
+
         if (record.thumb_url || record.cover_image_url) {
             const img = document.createElement('img');
             img.alt = record.release_title + ' by ' + record.release_artist;
@@ -260,6 +280,19 @@ var CoverFlow = (function () {
         const letterEl = _infoPanel.querySelector('.cf-letter-indicator');
         const discogsLinkEl = _infoPanel.querySelector('.cf-discogs-link');
 
+        if (record.is_bin_break) {
+            // Synthetic separator — clear metadata fields, hide Discogs link.
+            titleEl.textContent = 'Bin Break';
+            artistEl.textContent = '';
+            yearEl.textContent = '';
+            posEl.textContent = 'Section divider';
+            letterEl.textContent = 'Bin break';
+            discogsLinkEl.href = '#';
+            discogsLinkEl.style.display = 'none';
+            discogsLinkEl.setAttribute('aria-disabled', 'true');
+            return;
+        }
+
         titleEl.textContent = record.release_title;
         artistEl.textContent = record.release_artist;
         // Flow-mode year display: the user's Sort Year (the year they control
@@ -274,9 +307,9 @@ var CoverFlow = (function () {
         letterEl.textContent = isComp ? 'Compilations' : ('Section: ' + letter);
 
         // Discogs deep link
+        discogsLinkEl.style.display = '';
         if (record.discogs_id && record.discogs_id > 0) {
             discogsLinkEl.href = 'https://www.discogs.com/release/' + record.discogs_id;
-            discogsLinkEl.style.display = '';
             discogsLinkEl.removeAttribute('aria-disabled');
         } else {
             discogsLinkEl.href = '#';

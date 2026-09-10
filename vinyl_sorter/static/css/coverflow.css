@@ -78,6 +78,34 @@
     pointer-events: none;
 }
 
+/* --- Bin break separator (cover flow only) ------------------ */
+/* When the user passes --bins N, synthetic "Bin Break" entries
+   appear in the sorted list. They render as a white card with the
+   gap-horizontal icon centered, sized to match the cover art slot
+   so the layout doesn't shift. */
+.coverflow-item.is-bin-break .bin-break-icon {
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+}
+
+.coverflow-item.is-bin-break .bin-break-icon img {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+    border-radius: 0;
+    box-shadow: none;
+    /* SVG already has stroke="currentColor"; the wrapper above
+       sets color: #000, so the icon renders black on white. */
+}
+
 .coverflow-placeholder .vinyl-icon {
     font-size: 4rem;
     opacity: 0.4;
