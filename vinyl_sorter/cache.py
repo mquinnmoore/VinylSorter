@@ -35,12 +35,26 @@ DEFAULT_CACHE_FILE = ".vinyl_sorter_cache.json"
 # History:
 #   1 — original schema (pre-date_added)
 #   2 — adds ``date_added`` to every record (feat/sort-pill)
-CACHE_SCHEMA_VERSION = 2
+#   3 — adds ``genres`` and ``styles`` to every record (feat/genre-sort-mode)
+CACHE_SCHEMA_VERSION = 3
 
 
 # ---------------------------------------------------------------------------
 # Serialization helpers
 # ---------------------------------------------------------------------------
+
+def _string_list(value: Any) -> List[str]:
+    """Coerce a cached value into a list of strings.
+
+    Tolerates the three shapes seen in practice: a proper list of strings,
+    null / missing (→ ``[]``), and a bare string (→ single-element list).
+    """
+    if not value:
+        return []
+    if isinstance(value, str):
+        return [value]
+    return [str(v) for v in value]
+
 
 def _record_to_cache_dict(record: VinylRecord) -> Dict[str, Any]:
     """Convert a VinylRecord to a dict suitable for JSON cache storage.
@@ -71,6 +85,8 @@ def _record_to_cache_dict(record: VinylRecord) -> Dict[str, Any]:
         "thumb_url": record.thumb_url,
         "import_number": record.import_number,
         "date_added": record.date_added.isoformat() if record.date_added else None,
+        "genres": list(record.genres),
+        "styles": list(record.styles),
     }
 
 
@@ -110,6 +126,11 @@ def _cache_dict_to_record(d: Dict[str, Any]) -> VinylRecord:
     record.cover_image_url = d.get("cover_image_url", "")
     record.thumb_url = d.get("thumb_url", "")
     record.import_number = d.get("import_number", -1)
+
+    # Discogs genres/styles.  Legacy caches may lack the keys entirely, and a
+    # hand-edited cache may carry null — both mean "no data", i.e. [].
+    record.genres = _string_list(d.get("genres"))
+    record.styles = _string_list(d.get("styles"))
 
     # date_added is stored as an ISO 8601 string; legacy caches may lack it.
     raw_date_added = d.get("date_added")

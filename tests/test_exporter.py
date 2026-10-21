@@ -153,7 +153,11 @@ def test_export_collection_json_mixed_records() -> None:
 
 
 def test_export_collection_json_schema_unchanged_for_normal_records() -> None:
-    """Adding ``is_bin_break`` to the schema must not break existing keys."""
+    """The canonical key set stays stable as fields are added.
+
+    ``genres``/``styles`` were added for the Genre sort mode; every other
+    key must be untouched so existing consumers keep working.
+    """
     record = _make_records(1)[0]
     d = record_to_dict(record)
     expected_keys = {
@@ -162,7 +166,7 @@ def test_export_collection_json_schema_unchanged_for_normal_records() -> None:
         "sort_month", "is_compilation", "is_live",
         "cover_image_url", "date_added", "thumb_url",
         "instance_id", "folder_id", "import_number",
-        "is_bin_break",
+        "is_bin_break", "genres", "styles",
     }
     assert set(d.keys()) == expected_keys
 

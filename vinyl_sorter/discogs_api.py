@@ -80,6 +80,11 @@ class DiscogsAPI:
         self._user = self._client.identity()
         self._token = token
         self._username = self._user.username
+        # Per-run memo of fully-fetched releases, keyed by release id.
+        # Several code paths need the same release object in one run
+        # (master lookup, live-year lookup, genre lookup); without this
+        # each path would issue its own Discogs request for the same id.
+        self._release_cache: Dict[int, object] = {}
         logger.info("Logged into Discogs as %s", self._username)
 
     @property
@@ -106,6 +111,52 @@ class DiscogsAPI:
             Number of releases in the folder.
         """
         return self._user.collection_folders[folder_index].count
+
+    def _get_release(self, release_id: int):
+        """Fetch a release, reusing the object if this run already fetched it.
+
+        Keeps the per-run request count down when several enrichment paths
+        (master lookup, live-year scan, genre lookup) need the same release.
+        Returns ``None`` when the fetch fails.
+
+        Args:
+            release_id: Discogs release ID.
+
+        Returns:
+            The release object, or None if it could not be fetched.
+        """
+        cached = self._release_cache.get(release_id)
+        if cached is not None:
+            return cached
+        release = self._client.release(release_id)
+        self._release_cache[release_id] = release
+        return release
+
+    # -- Genres / styles -----------------------------------------------------
+
+    def lookup_release_genres(self, release_id: int) -> Tuple[List[str], List[str]]:
+        """Return ``(genres, styles)`` for a release.
+
+        Discogs ``genres`` is the broad classification (Rock, Electronic,
+        Jazz, …) and drives the Genre sort mode; ``styles`` is the
+        finer-grained sub-classification (Dream Pop, Shoegaze, …) shown
+        in the record modal.
+
+        Args:
+            release_id: Discogs release ID.
+
+        Returns:
+            (genres, styles) as returned by Discogs. ``([], [])`` on any
+            failure — a bad lookup must never abort the pipeline.
+        """
+        try:
+            release = self._get_release(release_id)
+            genres = list(getattr(release, "genres", None) or [])
+            styles = list(getattr(release, "styles", None) or [])
+            return genres, styles
+        except Exception as exc:
+            logger.warning("Could not look up genres for release %d: %s", release_id, exc)
+            return [], []
 
     # -- Artist ---------------------------------------------------------------
 
@@ -135,7 +186,7 @@ class DiscogsAPI:
         master cannot be fetched.
         """
         try:
-            release_info = self._client.release(release_id)
+            release_info = self._get_release(release_id)
             # Collect notes from both release and master for live detection
             release_notes = getattr(release_info, 'notes', '') or ''
             master_notes = ''
@@ -210,7 +261,7 @@ class DiscogsAPI:
     def lookup_live_year(self, release_id: int) -> Optional[int]:
         """Search release and master text fields for a live-performance year."""
         try:
-            release = self._client.release(release_id)
+            release = self._get_release(release_id)
             all_dates: List[str] = []
 
             # Check release title and notes

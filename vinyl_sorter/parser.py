@@ -49,7 +49,7 @@ def parse_collection(
     aliases: Optional[Dict[str, str]] = None,
     force_reparse: bool = False,
 ) -> int:
-    """Populate sort_artist, sort_year, and sort_month on each record.
+    """Populate sort_artist, sort_year, sort_month, and genres on each record.
 
     When persisted values exist on a record (from Discogs custom fields)
     and ``force_reparse`` is False, those values are used directly and
@@ -153,4 +153,68 @@ def parse_collection(
     logger.info(
         "Parsing complete. %d records required fresh computation.", computed_count
     )
+
+    # Genre enrichment runs after the sort-field pass so that its Discogs
+    # calls reuse the release objects already fetched by compute_sort_date().
+    enrich_genres(records, api)
+
     return computed_count
+
+
+def enrich_genres(records: List[VinylRecord], api: DiscogsAPI) -> Dict[str, int]:
+    """Populate ``genres``/``styles`` on each record from its Discogs release.
+
+    Records that already carry data are skipped entirely, which is what makes
+    a cache-warm run issue zero Discogs calls here: ``_cache_dict_to_record()``
+    restores the lists, so nothing needs re-fetching.
+
+    This pass is independent of the persisted custom-field sort data — those
+    fields say nothing about genre — so it runs for every record regardless of
+    whether that record's sort fields came from Discogs custom fields.
+
+    A failed lookup logs a warning and leaves the record with empty lists;
+    it never aborts the pipeline.
+
+    Args:
+        records: List of VinylRecord objects (modified in place).
+        api: Authenticated Discogs API session.
+
+    Returns:
+        Counters: ``total``, ``from_payload`` (already had data),
+        ``fetched`` (needed a lookup), and ``failed`` (lookup returned
+        nothing for a record that had no data).
+    """
+    total = 0
+    from_payload = 0
+    fetched = 0
+    failed = 0
+
+    for record in records:
+        # Bin-break rows are synthetic separators, not Discogs releases.
+        if record.is_bin_break:
+            continue
+
+        total += 1
+
+        if record.genres or record.styles:
+            from_payload += 1
+            continue
+
+        genres, styles = api.lookup_release_genres(record.discogs_id)
+        if genres or styles:
+            fetched += 1
+        else:
+            failed += 1
+        record.genres = genres
+        record.styles = styles
+
+    logger.info(
+        "Genre phase: %d records, %d from collection payload, %d fetched, %d failed.",
+        total, from_payload, fetched, failed,
+    )
+    return {
+        "total": total,
+        "from_payload": from_payload,
+        "fetched": fetched,
+        "failed": failed,
+    }

@@ -6,7 +6,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from .constants import (
     ArtistType,
@@ -77,6 +77,15 @@ class VinylRecord:
     # When this release was added to the Discogs collection (UTC).
     # None when not available (e.g. legacy cache, non-Discogs sources).
     date_added: Optional[datetime] = None
+
+    # Discogs release ``genres`` (broad: Rock, Electronic, Jazz, …) and
+    # ``styles`` (fine-grained: Dream Pop, Shoegaze, …).  Stored verbatim as
+    # Discogs returns them — no normalisation, casing or ordering is
+    # applied, so the displayed string always matches the release page.
+    # A release may carry several genres; Grid mode renders a record under
+    # each of them.  Empty when Discogs has no data for the release.
+    genres: List[str] = field(default_factory=list)
+    styles: List[str] = field(default_factory=list)
 
     # Import order tracking
     import_number: int = field(default=-1, repr=False)
