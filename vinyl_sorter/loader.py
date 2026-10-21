@@ -84,6 +84,13 @@ def load_collection(
         except Exception:
             pass  # Cover art extraction is best-effort
 
+        # Cheap path for genres/styles: read them off the release object we
+        # already have.  Whether the collection payload embeds them is not
+        # guaranteed, so both fields default to [] and the parser's Genre
+        # phase falls back to a per-release fetch when both are empty.
+        genres = list(getattr(release, "genres", None) or [])
+        styles = list(getattr(release, "styles", None) or [])
+
         record = VinylRecord(
             discogs_id=release.id,
             release_artist=release.artists[0].name,
@@ -99,6 +106,8 @@ def load_collection(
             cover_image_url=cover_image,
             thumb_url=thumb,
             date_added=getattr(item, "date_added", None),
+            genres=genres,
+            styles=styles,
         )
 
         if persisted_artist:

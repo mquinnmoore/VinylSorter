@@ -472,6 +472,14 @@ body {
     background: #7b2d8b;
 }
 
+.badge-genre {
+    background: #1d4e89;
+}
+
+.badge-style {
+    background: #2f4858;
+}
+
 /* --- Modal actions (View on Discogs) ----------------------- */
 .modal-actions {
     flex: 0 0 auto;

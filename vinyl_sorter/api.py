@@ -63,6 +63,14 @@ class RecordResponse(BaseModel):
             "inserted by the --bins CLI flag — not a real Discogs record."
         ),
     )
+    genres: List[str] = Field(
+        default_factory=list,
+        description="Discogs genres for this release (broad; drives Genre sort mode)",
+    )
+    styles: List[str] = Field(
+        default_factory=list,
+        description="Discogs styles for this release (fine-grained; shown in the modal)",
+    )
 
     model_config = {"json_schema_extra": {"example": {
         "discogs_id": 1234567,
@@ -79,6 +87,8 @@ class RecordResponse(BaseModel):
         "thumb_url": "https://img.discogs.com/.../150.jpg",
         "date_added": "2024-03-15T18:22:11+00:00",
         "is_bin_break": False,
+        "genres": ["Rock", "Pop"],
+        "styles": ["Dream Pop"],
     }}}
 
 

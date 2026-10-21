@@ -22,6 +22,7 @@
     const btnSortOriginal = document.getElementById('btn-sort-original');
     const btnSortYear = document.getElementById('btn-sort-year');
     const btnSortAdded = document.getElementById('btn-sort-added');
+    const btnSortGenre = document.getElementById('btn-sort-genre');
     const sortDirection = document.getElementById('sort-direction');
     const btnSortDirection = document.getElementById('btn-sort-direction');
 
@@ -76,7 +77,7 @@
     function initSortToggle() {
         var saved = localStorage.getItem('vinylsort-sort');
         var savedDirection = localStorage.getItem('vinylsort-direction');
-        if (saved === 'original' || saved === 'year' || saved === 'added') {
+        if (saved === 'original' || saved === 'year' || saved === 'added' || saved === 'genre') {
             _currentSort = saved;
         }
         if (savedDirection === 'asc' || savedDirection === 'desc') {
@@ -86,6 +87,7 @@
         btnSortOriginal.addEventListener('click', function () { switchSort('original'); });
         btnSortYear.addEventListener('click', function () { switchSort('year'); });
         btnSortAdded.addEventListener('click', function () { switchSort('added'); });
+        btnSortGenre.addEventListener('click', function () { switchSort('genre'); });
         btnSortDirection.addEventListener('click', function () {
             if (_currentSort === 'original' || btnSortDirection.disabled) return;
             _currentDirection = _currentDirection === 'asc' ? 'desc' : 'asc';
@@ -109,6 +111,7 @@
         btnSortOriginal.classList.toggle('active', _currentSort === 'original');
         btnSortYear.classList.toggle('active', _currentSort === 'year');
         btnSortAdded.classList.toggle('active', _currentSort === 'added');
+        btnSortGenre.classList.toggle('active', _currentSort === 'genre');
         var disabled = _currentSort === 'original';
         btnSortDirection.disabled = disabled;
         btnSortDirection.classList.toggle('disabled', disabled);
@@ -137,10 +140,59 @@
                     if (result !== 0) return result * (_currentDirection === 'asc' ? 1 : -1);
                     return a.sort_sequence - b.sort_sequence;
                 });
+            case 'genre':
+                // Flow mode consumes this flat array directly: one row per
+                // record, ordered by primary genre.  The direction multiplier
+                // is deliberately NOT applied here — it flips genre *section*
+                // order in genreSections(), which is a Grid-only concern.
+                return arr.sort(function (a, b) {
+                    var ga = primaryGenre(a);
+                    var gb = primaryGenre(b);
+                    // Records with no genre sort last in both directions so
+                    // they stay grouped with the "Unknown" section.
+                    if (ga === null && gb === null) return a.sort_sequence - b.sort_sequence;
+                    if (ga === null) return 1;
+                    if (gb === null) return -1;
+                    var cmp = ga.toLowerCase().localeCompare(gb.toLowerCase());
+                    if (cmp !== 0) return cmp;
+                    return a.sort_sequence - b.sort_sequence;
+                });
             case 'original':
             default:
                 return arr;
         }
+    }
+
+    /**
+     * The genre a record sorts under: the alphabetically-first of its genres,
+     * compared case-insensitively. Null when the record carries no genre.
+     */
+    function primaryGenre(record) {
+        var genres = record.genres || [];
+        if (genres.length === 0) return null;
+        var sorted = genres.slice().sort(function (a, b) {
+            return a.toLowerCase().localeCompare(b.toLowerCase());
+        });
+        return sorted[0];
+    }
+
+    /** Genre strings for a record, de-duplicated, in alphabetical order. */
+    function sortedGenres(record) {
+        var genres = record.genres || [];
+        var seen = {};
+        var out = [];
+        for (var i = 0; i < genres.length; i++) {
+            var g = genres[i];
+            if (!g) continue;
+            var key = g.toLowerCase();
+            if (seen[key]) continue;
+            seen[key] = true;
+            out.push(g);
+        }
+        out.sort(function (a, b) {
+            return a.toLowerCase().localeCompare(b.toLowerCase());
+        });
+        return out;
     }
 
     /** Re-render the visible collection from _allRecords with the current sort applied. */
@@ -310,6 +362,9 @@
      * split out under those modes.
      */
     function computeSections(records) {
+        if (_currentSort === 'genre') {
+            return genreSections(records);
+        }
         if (_currentSort === 'year') {
             return bucketBy(records, function (r) {
                 return r.sort_year > 0 ? String(r.sort_year) : null;
@@ -328,6 +383,55 @@
         }
         // original (default): letter-grouped + trailing Compilations
         return originalSections(records);
+    }
+
+    /**
+     * Build one section per Discogs genre, expanding records one-to-many: a
+     * record tagged ["Rock", "Pop"] is placed in BOTH the Rock and the Pop
+     * section, so the card count in Grid mode can exceed the record count.
+     * That is intentional — every genre a record carries is a real home for it.
+     *
+     * This cannot reuse bucketBy(), which maps one record to exactly one key.
+     *
+     * Section order follows the sort direction (Unknown stays pinned last in
+     * both directions); within a section, records keep the order applySort()
+     * produced.
+     */
+    function genreSections(records) {
+        const order = [];
+        const map = {};
+        const unknowns = [];
+
+        for (const record of records) {
+            const genres = sortedGenres(record);
+            if (genres.length === 0) {
+                unknowns.push(record);
+                continue;
+            }
+            for (const genre of genres) {
+                // sortedGenres() already de-duplicated, so a record cannot be
+                // appended twice to the same section.
+                if (!map[genre]) {
+                    map[genre] = [];
+                    order.push(genre);
+                }
+                map[genre].push(record);
+            }
+        }
+
+        order.sort(function (a, b) {
+            return a.toLowerCase().localeCompare(b.toLowerCase());
+        });
+        if (_currentDirection === 'desc') order.reverse();
+
+        const sections = [];
+        for (const genre of order) {
+            sections.push({ label: genre, records: map[genre] });
+        }
+        if (unknowns.length > 0) {
+            sections.push({ label: 'Unknown', records: unknowns });
+        }
+        return sections;
     }
 
     /**
@@ -494,6 +598,22 @@
             const badge = document.createElement('span');
             badge.className = 'badge badge-compilation';
             badge.textContent = 'Compilation';
+            modalBadges.appendChild(badge);
+        }
+        // Genres (the Genre sort keys) and styles (finer-grained detail).
+        // textContent, never innerHTML — Discogs strings are untrusted.
+        const genres = record.genres || [];
+        for (let i = 0; i < genres.length; i++) {
+            const badge = document.createElement('span');
+            badge.className = 'badge badge-genre';
+            badge.textContent = genres[i];
+            modalBadges.appendChild(badge);
+        }
+        const styles = record.styles || [];
+        for (let i = 0; i < styles.length; i++) {
+            const badge = document.createElement('span');
+            badge.className = 'badge badge-style';
+            badge.textContent = styles[i];
             modalBadges.appendChild(badge);
         }
 
